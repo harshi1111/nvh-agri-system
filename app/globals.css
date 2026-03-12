@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* ===============================
+   Theme Variables
+================================ */
+@theme {
+  --color-background: #0A0F0A;
+  --color-foreground: #F5F5F0;
+  --color-primary: #D4AF37;
+  --color-primary-foreground: #0A0F0A;
+  --color-border: rgba(212, 175, 55, 0.3);
+  --radius: 0.75rem;
+}
+
+/* ===============================
+   Global Styles
+================================ */
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: "Inter", sans-serif;
+}
+
+/* ===============================
+   Animations
+================================ */
+@keyframes gold-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0);
+  }
+}
+
+/* ===============================
+   Utilities
+================================ */
+@layer utilities {
+
+  /* Hide scrollbar but keep scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+
+  /* Gold pulse animation */
+  .gold-pulse {
+    animation: gold-pulse 1.5s infinite;
+  }
+}
+
+/* ===============================
+   Sidebar Logo Fallback
+================================ */
+.fallback-logo .hidden {
+  display: flex !important;
+}

@@ -1,0 +1,101 @@
+name: Database Backup
+
+on:
+  # Schedule: Run every Sunday at 2 AM
+  schedule:
+    - cron: '0 2 * * 0'
+  
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Create Database Backup
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js
+
+      - name: Create backups directory
+        run: mkdir -p backups
+
+      - name: Create backup script
+        run: |
+          cat > scripts/backup.js << 'EOF'
+          const { createClient } = require('@supabase/supabase-js')
+          const fs = require('fs')
+          const path = require('path')
+
+          const supabaseUrl = process.env.SUPABASE_URL
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+          if (!supabaseUrl || !supabaseKey) {
+            console.error('Missing required environment variables')
+            process.exit(1)
+          }
+
+          const supabase = createClient(supabaseUrl, supabaseKey)
+
+          async function backup() {
+            console.log('🔄 Starting database backup...')
+            
+            const tables = ['customers', 'projects', 'transactions', 'transaction_types']
+            const backup = {
+              metadata: {
+                exported_at: new Date().toISOString(),
+                version: '1.0',
+                tables: tables
+              }
+            }
+            
+            for (const table of tables) {
+              console.log(`📦 Backing up table: ${table}...`)
+              
+              const { data, error } = await supabase
+                .from(table)
+                .select('*')
+              
+              if (error) {
+                console.error(`❌ Error backing up ${table}:`, error.message)
+                backup[table] = { error: error.message }
+                continue
+              }
+              
+              backup[table] = {
+                count: data.length,
+                data: data
+              }
+              console.log(`✅ ${table}: ${data.length} records`)
+            }
+            
+            const filename = `backup-${new Date().toISOString().split('T')[0]}.json`
+            fs.writeFileSync(filename, JSON.stringify(backup, null, 2))
+            
+            console.log('✨ Backup completed!')
+            console.log(`💾 Saved to: ${filename}`)
+          }
+
+          backup().catch(console.error)
+          EOF
+
+      - name: Run backup script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/backup.js
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: database-backup-${{ github.run_id }}
+          path: backup-*.json
+          retention-days: 30
