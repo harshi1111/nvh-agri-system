@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       name: result.name || '',
       aadhaarNumber: result.aadhaarNumber || result.Number || '',
-      dob: result.dob || result.dateOfBirth || '',
+      dob: result.dob || '',
       gender: result.gender || '',
       address: result.address || '',
     })
