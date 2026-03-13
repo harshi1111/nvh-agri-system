@@ -64,7 +64,7 @@ export async function createTransaction(projectId: string, data: TransactionData
     project_id: projectId,
     sequence_number: nextSequence,
     date: data.date,
-    transaction_type_id: transaction_type_id,  // ✅ Using correct column name
+    transaction_type_id: transaction_type_id,
     description: data.description,
     quantity: data.count || null,
   }
@@ -112,7 +112,8 @@ export async function getTransactionsByProject(projectId: string) {
     id: t.id,
     serial_no: t.sequence_number,
     date: t.date,
-    type: t.type as "labour" | "sprinkler" | "transport" | "food" | "ploughing" | "tractor" | "dung" | "investment",
+    // ✅ FIXED: Use idToTypeMap to convert transaction_type_id to type string
+    type: idToTypeMap[t.transaction_type_id] || 'unknown',
     amount: t.debit_amount > 0 ? t.debit_amount : t.credit_amount,
     description: t.description || '',
     count: t.quantity || null,
