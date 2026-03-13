@@ -1,6 +1,36 @@
 import { createClient } from '@/lib/supabase/server'
 import AccountingClient from './AccountingClient'
 
+// Define types for the data structure
+interface Transaction {
+  id: string
+  sequence_number: number
+  date: string
+  transaction_type_id: number
+  quantity: number | null
+  unit: string | null
+  debit_amount: number | null
+  credit_amount: number | null
+  description: string | null
+}
+
+interface Project {
+  id: string
+  name: string
+  status: string
+  acres: number | null
+  transactions: Transaction[]
+}
+
+interface Customer {
+  id: string
+  full_name: string
+  contact_number: string
+  is_active: boolean
+  created_at: string
+  projects: Project[]
+}
+
 // Map database id to frontend type name
 const idToTypeMap: Record<number, string> = {
   1: 'labour',
@@ -47,12 +77,15 @@ export default async function AccountingPage() {
     return <AccountingClient customers={[]} />
   }
 
+  // Type assertion for the fetched data
+  const typedCustomers = (customers || []) as Customer[]
+
   // Transform the data to include transaction type names and proper fields
-  const transformedCustomers = customers.map(customer => ({
+  const transformedCustomers = typedCustomers.map((customer: Customer) => ({
     ...customer,
-    projects: customer.projects.map(project => ({
+    projects: customer.projects.map((project: Project) => ({
       ...project,
-      transactions: project.transactions.map(transaction => {
+      transactions: project.transactions.map((transaction: Transaction) => {
         const type = idToTypeMap[transaction.transaction_type_id] || 'unknown'
         return {
           id: transaction.id,
@@ -65,7 +98,7 @@ export default async function AccountingPage() {
           debit_amount: transaction.debit_amount || 0,
           credit_amount: transaction.credit_amount || 0,
           // For backward compatibility
-          amount: transaction.debit_amount > 0 ? transaction.debit_amount : transaction.credit_amount,
+          amount: (transaction.debit_amount || 0) > 0 ? transaction.debit_amount : transaction.credit_amount,
         }
       })
     }))
