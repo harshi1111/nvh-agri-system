@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     await writeFile(tempPath, buffer)
 
     // Extract details using the package
-    const result = await extractCardDetails(tempPath, 'AADHAAR'.toUpperCase())
+    const result = await extractCardDetails(tempPath, 'AADHAAR')
     
     console.log('Extracted result:', result)
 
