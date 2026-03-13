@@ -28,8 +28,7 @@ const navItems = [
   { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Archive', href: '/settings/archive', icon: Archive }, 
-  { name: 'Backup Settings', href: '/settings/backup', icon: Shield },
-  { name: 'Archive', href: '/settings/archive', icon: Archive }
+  
 ]
 
 export default function Sidebar() {
@@ -76,6 +75,7 @@ export default function Sidebar() {
                 src="/images/logo-alone (1).png" 
                 alt="NVH Logo" 
                 fill
+                sizes="(max-width: 768px) 100vw, 33vw" 
                 className="object-contain"
                 onError={(e) => {
                   // If image fails to load, replace with fallback

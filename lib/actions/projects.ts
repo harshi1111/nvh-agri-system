@@ -24,11 +24,9 @@ export async function getProjectsByCustomer(customerId: string) {
 export async function createProject(formData: FormData) {
   const supabase = await createClient()
   
-  // Get current user
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // Extract form fields
   const customer_id = formData.get('customer_id') as string
   const name = formData.get('name') as string
   const acres = formData.get('acres') ? parseFloat(formData.get('acres') as string) : null
@@ -38,12 +36,10 @@ export async function createProject(formData: FormData) {
   const village = formData.get('village') as string || null
   const status = formData.get('status') as string || 'active'
 
-  // Validation
   if (!customer_id || !name) {
     return { error: 'Customer ID and project name are required' }
   }
 
-  // Insert
   const { data, error } = await supabase
     .from('projects')
     .insert({
@@ -66,4 +62,37 @@ export async function createProject(formData: FormData) {
 
   revalidatePath(`/customers/${customer_id}`)
   return { success: true, project: data }
+}
+
+// 🔧 FIXED: Delete Project function
+export async function deleteProject(projectId: string) {
+  const supabase = await createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  // First delete all transactions associated with this project
+  const { error: transactionError } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('project_id', projectId)
+
+  if (transactionError) {
+    console.error('Error deleting transactions:', transactionError)
+    return { error: transactionError.message }
+  }
+
+  // Then delete the project
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+
+  if (error) {
+    console.error('Error deleting project:', error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/customers')
+  return { success: true }
 }

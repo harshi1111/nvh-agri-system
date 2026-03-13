@@ -63,6 +63,10 @@ export async function createCustomer(formData: FormData) {
   const gender = formData.get('gender') as string
   const date_of_birth = formData.get('date_of_birth') as string
   const address = formData.get('address') as string
+  const aadhaar_image_url = formData.get('aadhaar_image_url') as string
+  const aadhaar_images = formData.get('aadhaar_images') 
+  ? JSON.parse(formData.get('aadhaar_images') as string) 
+  : []
 
   const is_active = true
 
@@ -103,6 +107,8 @@ export async function createCustomer(formData: FormData) {
       email: email || null,
       gender: gender || null,
       date_of_birth: date_of_birth || null,
+      aadhaar_image_url: aadhaar_image_url || null,
+      aadhaar_images: aadhaar_images,
       address: address || null,
       is_active
     })
@@ -136,6 +142,9 @@ export async function updateCustomer(formData: FormData) {
   const gender = formData.get('gender') as string
   const date_of_birth = formData.get('date_of_birth') as string
   const address = formData.get('address') as string
+  const aadhaar_images = formData.get('aadhaar_images') 
+  ? JSON.parse(formData.get('aadhaar_images') as string) 
+  : []
   const is_active = formData.get('is_active') === 'true'
 
   if (!id || !full_name) {
@@ -178,6 +187,7 @@ export async function updateCustomer(formData: FormData) {
       gender: gender || null,
       date_of_birth: date_of_birth || null,
       address: address || null,
+      aadhaar_images: aadhaar_images,
       is_active
     })
     .eq('id', id)

@@ -15,9 +15,10 @@ import {
   Edit,
   Trash2
 } from 'lucide-react'
-import CustomerFormModal from './CustomerFormModal'
+import CustomerFormModal from '@/components/CustomerFormModal'
 import EditCustomerModal from '@/components/EditCustomerModal'
 import DeleteCustomerModal from '@/components/DeleteCustomerModal'
+import AadhaarIcon from '@/components/AadhaarIcon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -62,7 +63,7 @@ export default function CustomersClient({ initialCustomers }: { initialCustomers
     }
     
     fetchArchiveCount()
-  }, []) // Re-run when component mounts or after navigation
+  }, [])
 
   // Filter customers based on search and status
   const filteredCustomers = initialCustomers.filter(customer => {
@@ -71,11 +72,8 @@ export default function CustomersClient({ initialCustomers }: { initialCustomers
       customer.contact_number.includes(searchTerm) ||
       (customer.aadhaar_number && customer.aadhaar_number.includes(searchTerm))
     
-    // For 'all', show only active customers in the main list
-    // For 'active', show active customers
-    // For 'inactive', show none (they're in archive)
     if (filterStatus === 'inactive') {
-      return false // Inactive customers are shown in archive page, not here
+      return false
     }
     
     return matchesSearch
@@ -96,9 +94,7 @@ export default function CustomersClient({ initialCustomers }: { initialCustomers
   }
 
   const handleCustomerDeleted = () => {
-    // Refresh and update archive count
     router.refresh()
-    // Fetch new archive count
     fetch('/api/archive-count')
       .then(res => res.json())
       .then(data => setArchiveCount(data.count))
@@ -209,10 +205,12 @@ export default function CustomersClient({ initialCustomers }: { initialCustomers
           <Table>
             <TableHeader className="bg-[#1A1F1A]">
               <TableRow className="border-b border-[rgba(212,175,55,0.2)]">
+                <TableHead className="text-gray-300 w-16">S.No</TableHead>
                 <TableHead className="text-gray-300">Name</TableHead>
                 <TableHead className="text-gray-300">Contact</TableHead>
-                <TableHead className="text-gray-300">Aadhaar</TableHead>
+                <TableHead className="text-gray-300">Aadhaar No.</TableHead>
                 <TableHead className="text-gray-300">Status</TableHead>
+                <TableHead className="text-gray-300">Aadhaar Card</TableHead>
                 <TableHead className="text-right text-gray-300">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -220,7 +218,7 @@ export default function CustomersClient({ initialCustomers }: { initialCustomers
             <TableBody>
               {filteredCustomers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                  <TableCell colSpan={7} className="text-center py-12 text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Users className="w-8 h-8 text-gray-600" />
                       <p>No active customers found.</p>
@@ -236,29 +234,27 @@ export default function CustomersClient({ initialCustomers }: { initialCustomers
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id} className="border-b border-[rgba(212,175,55,0.1)] hover:bg-[#D4AF37]/5">
-                    
-                    <TableCell className="font-medium text-white">
-                      {customer.full_name}
-                    </TableCell>
-
-                    <TableCell className="text-gray-300">
-                      {customer.contact_number}
-                    </TableCell>
-
-                    <TableCell className="font-mono text-gray-300">
-                      {customer.aadhaar_number}
-                    </TableCell>
-
+                filteredCustomers.map((customer, index) => (
+                  <TableRow 
+                    key={customer.id} 
+                    className="border-b border-[rgba(212,175,55,0.1)] hover:bg-[#D4AF37]/5"
+                  >
+                    <TableCell className="text-gray-400 font-mono">{index + 1}</TableCell>
+                    <TableCell className="font-medium text-white">{customer.full_name}</TableCell>
+                    <TableCell className="text-gray-300">{customer.contact_number}</TableCell>
+                    <TableCell className="font-mono text-gray-300">{customer.aadhaar_number}</TableCell>
                     <TableCell>
-                      <Badge 
-                        className="bg-[#D4AF37] text-[#0A0F0A] rounded-full px-3 py-1"
-                      >
+                      <Badge className="bg-[#D4AF37] text-[#0A0F0A] rounded-full px-3 py-1">
                         Active
                       </Badge>
                     </TableCell>
-
+                    <TableCell>
+                      <AadhaarIcon 
+                        customerId={customer.id}
+                        existingImages={customer.aadhaar_images || []}
+                        onImagesUpdated={() => router.refresh()}
+                      />
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -266,39 +262,32 @@ export default function CustomersClient({ initialCustomers }: { initialCustomers
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-
                         <DropdownMenuContent align="end" className="bg-[#1A1F1A] border-[rgba(212,175,55,0.3)]">
-
                           <DropdownMenuItem 
                             onClick={() => router.push(`/customers/${customer.id}`)}
                             className="text-white hover:bg-[#D4AF37]/20"
                           >
                             <Eye className="mr-2 h-4 w-4 text-[#D4AF37]" /> View
                           </DropdownMenuItem>
-
                           <DropdownMenuItem 
                             onClick={() => handleEditClick(customer)}
                             className="text-white hover:bg-[#D4AF37]/20"
                           >
                             <Edit className="mr-2 h-4 w-4 text-[#D4AF37]" /> Edit
                           </DropdownMenuItem>
-
                           <DropdownMenuItem 
                             onClick={() => handleDeleteClick(customer)}
                             className="text-red-400 hover:bg-red-400/10"
                           >
                             <Trash2 className="mr-2 h-4 w-4" /> Move to Archive
                           </DropdownMenuItem>
-
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
-
                   </TableRow>
                 ))
               )}
             </TableBody>
-
           </Table>
         </CardContent>
       </Card>

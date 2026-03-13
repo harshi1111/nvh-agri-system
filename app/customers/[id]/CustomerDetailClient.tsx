@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Customer } from '@/types/customers'
 import { Project } from '@/types/project'
 import { Mail, Phone, MapPin, CreditCard, Calendar, User } from 'lucide-react'
 import AddProjectModal from '@/components/AddProjectModal'
 import ProjectCardsDeck from '@/components/ProjectCardsDeck'
 import ProjectZoomView from '@/components/ProjectZoomView'
+import AadhaarIcon from '@/components/AadhaarIcon'
 
 interface CustomerDetailClientProps {
   customer: Customer
@@ -46,6 +48,7 @@ export default function CustomerDetailClient({ customer, initialProjects }: Cust
 
           {/* LEFT SIDE */}
           <div className="flex items-center gap-4 min-w-[250px]">
+
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/5 border-2 border-[#D4AF37]/30 flex items-center justify-center">
               <span className="text-2xl font-bold text-[#D4AF37]">
                 {customer.full_name?.charAt(0) || 'U'}
@@ -53,7 +56,19 @@ export default function CustomerDetailClient({ customer, initialProjects }: Cust
             </div>
 
             <div>
-              <h1 className="text-xl font-bold text-white">{customer.full_name}</h1>
+              
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold text-white">{customer.full_name}</h1>
+
+                {/* Aadhaar Icon - This is the ONLY place for Aadhaar */}
+                <AadhaarIcon 
+                  customerId={customer.id}
+                  existingImages={customer.aadhaar_images || []}
+                  onImagesUpdated={(images) => {
+                    console.log('Images updated:', images)
+                  }}
+                />
+              </div>
 
               <div className="flex items-center gap-3 mt-1">
 
@@ -125,6 +140,9 @@ export default function CustomerDetailClient({ customer, initialProjects }: Cust
             <span>{customer.address}</span>
           </div>
         )}
+
+        {/* REMOVED: Duplicate Aadhaar Card Section */}
+
       </div>
 
       {/* PROJECTS SECTION */}

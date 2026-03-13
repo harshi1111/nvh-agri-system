@@ -5,8 +5,10 @@ import { Project } from '@/types/project'
 import { 
   X, Edit2, Trash2, Save, Plus, Ruler, MapPin, Calendar, 
   DollarSign, Users, Truck, Coffee, Tractor, Droplets, 
-  Sprout, Wallet, Leaf, MoreHorizontal
+  Sprout, Wallet, Leaf
 } from 'lucide-react'
+import { createTransaction, getTransactionsByProject, updateTransaction, deleteTransaction } from '@/lib/actions/transactions'
+import { deleteProject } from '@/lib/actions/projects'
 
 // --- Type Definitions ---
 interface Transaction {
@@ -14,10 +16,9 @@ interface Transaction {
   serial_no: number
   date: string
   type: 'labour' | 'transport' | 'food' | 'ploughing' | 'tractor' | 'dung' | 'sprinkler' | 'investment'
-  count?: number | null // For labour, tractor, sprinkler count
-  amount: number // The transaction amount
+  count?: number | null
+  amount: number
   description: string
-  // Type is determined by the 'type' field
 }
 
 interface ProjectZoomViewProps {
@@ -51,6 +52,7 @@ export default function ProjectZoomView({
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     date: new Date().toISOString().split('T')[0],
     type: 'labour',
@@ -59,10 +61,26 @@ export default function ProjectZoomView({
     description: ''
   })
 
-  // --- Effects ---
+  // --- Load transactions when project opens ---
   useEffect(() => {
-    if (project) setEditedProject(project)
+    if (project) {
+      setEditedProject(project)
+      loadTransactions()
+    }
   }, [project])
+
+  const loadTransactions = async () => {
+    if (!project) return
+    setIsLoading(true)
+    try {
+      const data = await getTransactionsByProject(project.id)
+      setTransactions(data)
+    } catch (error) {
+      console.error('Failed to load transactions:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // --- Calculations ---
   const totalDebit = transactions
@@ -74,38 +92,103 @@ export default function ProjectZoomView({
   const balance = totalCredit - totalDebit
 
   // --- Handlers ---
-  const handleAddTransaction = () => {
-    if (!newTransaction.type || !newTransaction.date || !newTransaction.amount) return
+  const handleAddTransaction = async () => {
+    if (!newTransaction.type || !newTransaction.date || !newTransaction.amount || !project) return
 
-    const newId = Date.now().toString()
-    const newSerial = transactions.length + 1
+    setIsLoading(true)
+    try {
+      const result = await createTransaction(project.id, {
+        project_id: project.id,
+        date: newTransaction.date,
+        type: newTransaction.type as any,
+        amount: newTransaction.amount,
+        description: newTransaction.description || '',
+        count: newTransaction.count || null,
+      })
 
-    const transaction: Transaction = {
-      id: newId,
-      serial_no: newSerial,
-      date: newTransaction.date,
-      type: newTransaction.type as any,
-      amount: newTransaction.amount,
-      description: newTransaction.description || '',
-      count: newTransaction.count || null,
+      if (result.error) {
+        console.error('Failed to add transaction:', result.error)
+        return
+      }
+
+      await loadTransactions()
+      resetForm()
+    } catch (error) {
+      console.error('Error adding transaction:', error)
+    } finally {
+      setIsLoading(false)
     }
-
-    setTransactions([...transactions, transaction])
-    resetForm()
   }
 
-  const handleUpdateTransaction = () => {
-    if (!editingTransaction) return
-    setTransactions(transactions.map(t => 
-      t.id === editingTransaction.id ? editingTransaction : t
-    ))
-    setEditingTransaction(null)
+  const handleUpdateTransaction = async () => {
+    if (!editingTransaction || !project) return
+
+    setIsLoading(true)
+    try {
+      const result = await updateTransaction(editingTransaction.id, {
+        date: editingTransaction.date,
+        type: editingTransaction.type,
+        amount: editingTransaction.amount,
+        description: editingTransaction.description,
+        count: editingTransaction.count,
+      })
+
+      if (result.error) {
+        console.error('Failed to update transaction:', result.error)
+        return
+      }
+
+      await loadTransactions()
+      setEditingTransaction(null)
+    } catch (error) {
+      console.error('Error updating transaction:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDeleteTransaction = (id: string) => {
-    const filtered = transactions.filter(t => t.id !== id)
-    const renumbered = filtered.map((t, index) => ({ ...t, serial_no: index + 1 }))
-    setTransactions(renumbered)
+  const handleDeleteTransaction = async (id: string) => {
+    if (!project) return
+
+    setIsLoading(true)
+    try {
+      const result = await deleteTransaction(id)
+      if (result.error) {
+        console.error('Failed to delete transaction:', result.error)
+        return
+      }
+
+      await loadTransactions()
+    } catch (error) {
+      console.error('Error deleting transaction:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteProject = async () => {
+    if (!project) return
+    
+    setIsDeletingProject(true)
+    try {
+      const result = await deleteProject(project.id)
+      if (result.error) {
+        console.error('Failed to delete project:', result.error)
+        return
+      }
+      setShowDeleteConfirm(false)
+      onClose()
+      if (onDelete) {
+        await onDelete(project.id)
+      }
+      if (onUpdate) {
+        onUpdate()
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error)
+    } finally {
+      setIsDeletingProject(false)
+    }
   }
 
   const resetForm = () => {
@@ -151,10 +234,10 @@ export default function ProjectZoomView({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6">
-      {/* Backdrop with blur - like the site's overlay */}
+      {/* Backdrop with blur */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
 
-      {/* Main Modal - Earthy glass card */}
+      {/* Main Modal */}
       <div className="relative w-full max-w-6xl h-[90vh] bg-gradient-to-br from-[#0A100A] to-[#1A2A1A] border border-[#D4AF37]/30 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         
         {/* --- Header --- */}
@@ -188,7 +271,7 @@ export default function ProjectZoomView({
               </>
             ) : (
               <>
-                <button onClick={() => { /* TODO: Save project */ setIsEditing(false) }} className="px-4 py-2 bg-[#D4AF37] text-[#0A100A] rounded-lg hover:bg-[#C6A032] transition-colors flex items-center gap-2">
+                <button onClick={() => { setIsEditing(false) }} className="px-4 py-2 bg-[#D4AF37] text-[#0A100A] rounded-lg hover:bg-[#C6A032] transition-colors flex items-center gap-2">
                   <Save className="w-4 h-4" /> Save
                 </button>
                 <button onClick={() => { setIsEditing(false); setEditedProject(project); }} className="px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors">
@@ -208,18 +291,24 @@ export default function ProjectZoomView({
             <h3 className="text-lg font-semibold text-white mb-3">Delete Project?</h3>
             <p className="text-gray-400 text-sm mb-6">This action cannot be undone. All transactions will be lost.</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">Cancel</button>
-              <button onClick={async () => { if (onDelete) { setIsDeletingProject(true); await onDelete(project.id); setIsDeletingProject(false); setShowDeleteConfirm(false); onClose(); } }} disabled={isDeletingProject} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50">
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteProject} 
+                disabled={isDeletingProject} 
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
+              >
                 {isDeletingProject ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
         )}
 
-        {/* --- Content Area with Two Columns: Summary Cards (Top) and Transactions (Bottom) --- */}
+        {/* --- Content Area --- */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
 
-          {/* FINANCIAL SUMMARY SECTION - Prominently at the top */}
+          {/* FINANCIAL SUMMARY SECTION */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
             {/* Debit Card */}
             <div className="bg-gradient-to-br from-red-500/5 to-transparent border border-red-500/20 rounded-xl p-5 backdrop-blur-sm">
@@ -239,7 +328,7 @@ export default function ProjectZoomView({
               <div className="text-2xl font-bold text-green-400">₹{totalCredit.toLocaleString()}</div>
               <div className="text-xs text-gray-500 mt-1">Money invested (capital)</div>
             </div>
-            {/* Balance Card - Highlighted */}
+            {/* Balance Card */}
             <div className="bg-gradient-to-br from-[#D4AF37]/5 to-transparent border border-[#D4AF37]/30 rounded-xl p-5 backdrop-blur-sm md:col-span-2">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-[#D4AF37]/10 rounded-lg"><Wallet className="w-5 h-5 text-[#D4AF37]" /></div>
@@ -266,11 +355,20 @@ export default function ProjectZoomView({
                 Transaction Ledger
               </h3>
               {!showAddForm && !editingTransaction && (
-                <button onClick={() => setShowAddForm(true)} className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-[#0A100A] rounded-lg hover:bg-[#C6A032] transition-all text-sm font-medium">
+                <button 
+                  onClick={() => setShowAddForm(true)} 
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-[#0A100A] rounded-lg hover:bg-[#C6A032] transition-all text-sm font-medium disabled:opacity-50"
+                >
                   <Plus className="w-4 h-4" /> Add Entry
                 </button>
               )}
             </div>
+
+            {/* Loading State */}
+            {isLoading && !showAddForm && (
+              <div className="text-center py-4 text-gray-400">Loading transactions...</div>
+            )}
 
             {/* Add/Edit Form */}
             {(showAddForm || editingTransaction) && (
@@ -368,9 +466,10 @@ export default function ProjectZoomView({
                   </button>
                   <button
                     onClick={editingTransaction ? handleUpdateTransaction : handleAddTransaction}
-                    className="px-4 py-2 text-sm bg-[#D4AF37] text-[#0A100A] rounded-lg hover:bg-[#C6A032]"
+                    disabled={isLoading}
+                    className="px-4 py-2 text-sm bg-[#D4AF37] text-[#0A100A] rounded-lg hover:bg-[#C6A032] disabled:opacity-50"
                   >
-                    {editingTransaction ? 'Update' : 'Add'} Entry
+                    {isLoading ? 'Saving...' : (editingTransaction ? 'Update' : 'Add')}
                   </button>
                 </div>
               </div>
@@ -406,7 +505,7 @@ export default function ProjectZoomView({
                         <div className="line-clamp-1">{t.description || '-'}</div>
                       </td>
                       <td className="py-3 px-4 text-gray-300">
-                        {t.count ? `${t.count} ${t.type === 'labour' ? 'workers' : t.type === 'tractor' ? 'units' : 'units'}` : '-'}
+                        {t.count ? `${t.count} ${t.type === 'labour' ? 'workers' : 'units'}` : '-'}
                       </td>
                       <td className="py-3 px-4 text-right font-medium text-red-400">
                         {t.type !== 'investment' ? `₹${t.amount.toLocaleString()}` : '-'}
@@ -416,17 +515,25 @@ export default function ProjectZoomView({
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => startEdit(t)} className="p-1 hover:bg-[#D4AF37]/20 rounded text-gray-400 hover:text-[#D4AF37]">
+                          <button 
+                            onClick={() => startEdit(t)} 
+                            disabled={isLoading}
+                            className="p-1 hover:bg-[#D4AF37]/20 rounded text-gray-400 hover:text-[#D4AF37] disabled:opacity-50"
+                          >
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDeleteTransaction(t.id)} className="p-1 hover:bg-red-500/20 rounded text-gray-400 hover:text-red-400">
+                          <button 
+                            onClick={() => handleDeleteTransaction(t.id)} 
+                            disabled={isLoading}
+                            className="p-1 hover:bg-red-500/20 rounded text-gray-400 hover:text-red-400 disabled:opacity-50"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
                     </tr>
                   ))}
-                  {transactions.length === 0 && (
+                  {transactions.length === 0 && !isLoading && (
                     <tr><td colSpan={8} className="text-center py-8 text-gray-500">No transactions yet. Add your first entry.</td></tr>
                   )}
                 </tbody>

@@ -1,4 +1,3 @@
-// types/customers.ts
 export interface Customer {
   id: string
   full_name: string
@@ -8,6 +7,7 @@ export interface Customer {
   gender?: string | null
   date_of_birth?: string | null
   address?: string | null
+  aadhaar_images?: string[] | null  // Add this line
   is_active: boolean
   created_at: string
   updated_at: string
