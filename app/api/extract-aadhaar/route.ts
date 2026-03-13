@@ -1,49 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { extractCardDetails } from 'pan-aadhaar-ocr'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
-import os from 'os'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File
+    const customerId = formData.get('customerId') as string
     
-    if (!file) {
+    if (!file || !customerId) {
       return NextResponse.json(
-        { error: 'No image provided' },
+        { error: 'No image or customer ID provided' },
         { status: 400 }
       )
     }
 
-    // Convert file to buffer
+    // Upload to Supabase Storage
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-
-    // Save to temp file (package needs file path)
-    const tempDir = path.join(os.tmpdir(), 'aadhaar-ocr')
-    await mkdir(tempDir, { recursive: true })
-    const tempPath = path.join(tempDir, `aadhaar-${Date.now()}.jpg`)
-    await writeFile(tempPath, buffer)
-
-    // Extract details using the package
-    const result = await extractCardDetails(tempPath, 'AADHAAR')
     
-    console.log('Extracted result:', result)
+    const supabase = await createClient()
+    const fileName = `aadhaar/${customerId}/${Date.now()}-${file.name}`
+    
+    const { error: uploadError } = await supabase.storage
+      .from('customer-documents')
+      .upload(fileName, buffer)
 
-    // The package might return different formats, adjust as needed
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('customer-documents')
+      .getPublicUrl(fileName)
+
+    // Return just the image URL - no OCR
     return NextResponse.json({
-      name: result.name || '',
-      aadhaarNumber: result.aadhaarNumber || result.Number || '',
-      dob: result.dob || '',
-      gender: result.gender || '',
-      address: result.address || '',
+      imageUrl: publicUrl,
+      message: 'Aadhaar uploaded successfully'
     })
 
   } catch (error: any) {
-    console.error('Aadhaar extraction error:', error)
+    console.error('Aadhaar upload error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to extract Aadhaar details' },
+      { error: error.message || 'Failed to upload Aadhaar' },
       { status: 500 }
     )
   }
