@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     // The package might return different formats, adjust as needed
     return NextResponse.json({
       name: result.name || '',
-      aadhaarNumber: result.aadhaarNumber || result.number || '',
+      aadhaarNumber: result.aadhaarNumber || result.Number || '',
       dob: result.dob || result.dateOfBirth || '',
       gender: result.gender || '',
       address: result.address || '',
