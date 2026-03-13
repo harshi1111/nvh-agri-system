@@ -1,5 +1,35 @@
 import { createClient } from '@/lib/supabase/server'
 import ReportsClient from './ReportsClient'
+import { notFound } from 'next/navigation'
+
+// Define types for the data structure
+interface Transaction {
+  id: string
+  sequence_number: number
+  date: string
+  transaction_type_id: number
+  quantity: number | null
+  unit: string | null
+  debit_amount: number | null
+  credit_amount: number | null
+  description: string | null
+}
+
+interface Project {
+  id: string
+  name: string
+  status: string
+  acres: number | null
+  transactions: Transaction[]
+}
+
+interface Customer {
+  id: string
+  full_name: string
+  contact_number: string
+  is_active: boolean
+  projects: Project[]
+}
 
 // Map database id to frontend type name
 const idToTypeMap: Record<number, string> = {
@@ -47,12 +77,15 @@ export default async function ReportsPage() {
     return <ReportsClient customers={[]} />
   }
 
+  // Type assertion for the fetched data
+  const typedCustomers = (customers || []) as Customer[]
+
   // Transform the data
-  const transformedCustomers = customers.map(customer => ({
+  const transformedCustomers = typedCustomers.map((customer: Customer) => ({
     ...customer,
-    projects: customer.projects.map(project => ({
+    projects: customer.projects.map((project: Project) => ({
       ...project,
-      transactions: project.transactions.map(transaction => {
+      transactions: project.transactions.map((transaction: Transaction) => {
         const type = idToTypeMap[transaction.transaction_type_id] || 'unknown'
         return {
           id: transaction.id,

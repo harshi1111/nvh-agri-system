@@ -112,7 +112,7 @@ export async function getTransactionsByProject(projectId: string) {
     id: t.id,
     serial_no: t.sequence_number,
     date: t.date,
-    type: idToTypeMap[t.transaction_type_id] || 'unknown',  // ✅ Convert ID to type name
+    type: t.type as "labour" | "sprinkler" | "transport" | "food" | "ploughing" | "tractor" | "dung" | "investment",
     amount: t.debit_amount > 0 ? t.debit_amount : t.credit_amount,
     description: t.description || '',
     count: t.quantity || null,

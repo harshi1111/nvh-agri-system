@@ -10,6 +10,7 @@ import ProjectCardsDeck from '@/components/ProjectCardsDeck'
 import ProjectZoomView from '@/components/ProjectZoomView'
 import AadhaarIcon from '@/components/AadhaarIcon'
 
+
 interface CustomerDetailClientProps {
   customer: Customer
   initialProjects: Project[]

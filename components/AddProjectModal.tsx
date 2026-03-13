@@ -5,16 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createProject } from '@/lib/actions/projects'
 import { X } from 'lucide-react'
 
-interface Project {
-  id: string
-  name: string
-  acres?: number
-  country?: string
-  state?: string
-  district?: string
-  village?: string
-  status?: string
-}
+import { Project } from '@/types/project'
 
 interface AddProjectModalProps {
   isOpen: boolean
