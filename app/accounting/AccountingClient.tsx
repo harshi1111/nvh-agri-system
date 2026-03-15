@@ -73,7 +73,7 @@ interface AccountingClientProps {
 function SpinningNumber({ value, color, suffix = '' }: { value: number; color?: string; suffix?: string }) {
   const [displayValue, setDisplayValue] = useState(0)
   const [spinning, setSpinning] = useState(true)
-  const spinIntervalRef = useRef<NodeJS.Timeout>()
+  const spinIntervalRef = useRef<NodeJS.Timeout>(null)
 
   useEffect(() => {
     setSpinning(true)
