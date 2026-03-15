@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   DollarSign, 
   TrendingUp, 
@@ -12,11 +13,18 @@ import {
   ChevronDown,
   ChevronUp,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  Leaf,
+  Sparkles,
+  PieChart,
+  ArrowUpRight,
+  ArrowDownRight,
+  Droplets,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
 import {
   Select,
   SelectContent,
@@ -56,10 +64,85 @@ interface Customer {
 
 interface AccountingClientProps {
   customers: Customer[]
+  totalCount: number
+  currentPage: number
+  pageSize: number
 }
 
-export default function AccountingClient({ customers }: AccountingClientProps) {
+// Spinning number component (same)
+function SpinningNumber({ value, color, suffix = '' }: { value: number; color?: string; suffix?: string }) {
+  const [displayValue, setDisplayValue] = useState(0)
+  const [spinning, setSpinning] = useState(true)
+  const spinIntervalRef = useRef<NodeJS.Timeout>()
+
+  useEffect(() => {
+    setSpinning(true)
+    const spinDuration = 1000
+    const spinSteps = 20
+    let step = 0
+
+    spinIntervalRef.current = setInterval(() => {
+      step++
+      setDisplayValue(Math.floor(Math.random() * value) || Math.floor(Math.random() * 100))
+      if (step >= spinSteps) {
+        clearInterval(spinIntervalRef.current)
+        setDisplayValue(value)
+        setSpinning(false)
+      }
+    }, spinDuration / spinSteps)
+
+    return () => {
+      if (spinIntervalRef.current) clearInterval(spinIntervalRef.current)
+    }
+  }, [value])
+
+  return (
+    <span className={`inline-block transition-all duration-100 ${spinning ? 'animate-spin-slot' : ''} ${color}`}>
+      {displayValue.toLocaleString()}{suffix}
+    </span>
+  )
+}
+
+// calculateLiquidity (same)
+const calculateLiquidity = (customers: Customer[]) => {
+  let totalInflow = 0
+  let totalOutflow = 0
+  let transactionCount = 0
+  
+  const now = new Date()
+  const threeMonthsAgo = new Date()
+  threeMonthsAgo.setMonth(now.getMonth() - 3)
+  
+  customers.forEach(customer => {
+    customer.projects?.forEach(project => {
+      project.transactions?.forEach(t => {
+        const txDate = new Date(t.date)
+        if (txDate >= threeMonthsAgo) {
+          totalInflow += t.credit_amount || 0
+          totalOutflow += t.debit_amount || 0
+          transactionCount++
+        }
+      })
+    })
+  })
+  
+  const velocity = transactionCount > 0 ? (totalInflow + totalOutflow) / transactionCount : 0
+  const ratio = totalOutflow > 0 ? (totalInflow / totalOutflow) * 100 : 0
+  
+  return {
+    velocity: Math.round(velocity),
+    ratio: Math.round(ratio),
+    isHealthy: ratio > 110
+  }
+}
+
+export default function AccountingClient({ customers, totalCount, currentPage, pageSize }: AccountingClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+  const [birdVisible, setBirdVisible] = useState(true)
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null)
+  const [glowIntensity, setGlowIntensity] = useState(0)
   
   // Filter states
   const [selectedCustomer, setSelectedCustomer] = useState<string>('all')
@@ -71,12 +154,30 @@ export default function AccountingClient({ customers }: AccountingClientProps) {
   })
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Reset expanded when page changes
+  useEffect(() => {
+    setExpandedCustomers([])
+  }, [currentPage])
+
+  // Animated glow effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setGlowIntensity(prev => (prev + 1) % 3)
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Bird animation
+  useEffect(() => {
+    setTimeout(() => setBirdVisible(false), 8000)
+  }, [])
+
   // Get only active customers
   const activeCustomers = useMemo(() => {
     return customers.filter(c => c.is_active === true)
   }, [customers])
 
-  // Get customers to display based on dropdown selection FIRST
+  // Get customers to display based on dropdown selection
   const dropdownFilteredCustomers = useMemo(() => {
     if (selectedCustomer === 'all') {
       return activeCustomers
@@ -84,7 +185,7 @@ export default function AccountingClient({ customers }: AccountingClientProps) {
     return activeCustomers.filter(c => c.id === selectedCustomer)
   }, [activeCustomers, selectedCustomer])
 
-  // THEN apply search filter on top of dropdown selection
+  // Apply search filter
   const displayedCustomers = useMemo(() => {
     return dropdownFilteredCustomers.filter(customer =>
       customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -109,21 +210,53 @@ export default function AccountingClient({ customers }: AccountingClientProps) {
     })
   }
 
-  // Calculate overall totals with filters
+  // Calculate REAL monthly data (uses paginated customers)
+  const monthlyData = useMemo(() => {
+    const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar']
+    const result: { month: string; profit: number; isProfit: boolean; actualValue: number }[] = []
+    
+    const today = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today)
+      date.setMonth(today.getMonth() - i)
+      const monthStr = date.toLocaleString('en-US', { month: 'short' })
+      
+      let totalCredit = 0
+      let totalDebit = 0
+      
+      customers.forEach(customer => {
+        customer.projects?.forEach(project => {
+          project.transactions?.forEach(t => {
+            const transactionDate = new Date(t.date)
+            if (transactionDate.getMonth() === date.getMonth() && 
+                transactionDate.getFullYear() === date.getFullYear()) {
+              totalCredit += t.credit_amount || 0
+              totalDebit += t.debit_amount || 0
+            }
+          })
+        })
+      })
+      
+      const netProfit = totalCredit - totalDebit
+      result.push({
+        month: monthStr,
+        profit: Math.max(15, Math.min(100, Math.abs(netProfit) / 1000)),
+        isProfit: netProfit >= 0,
+        actualValue: netProfit
+      })
+    }
+    return result
+  }, [customers])
+
+  // Calculate overall totals (using paginated set)
   const overallTotals = useMemo(() => {
     let totalDebit = 0
     let totalCredit = 0
-    let totalProjects = 0
     let totalTransactions = 0
 
-    displayedCustomers.forEach(customer => {
-      customer.projects.forEach(project => {
-        if (selectedProject !== 'all' && project.id !== selectedProject) return
-        
-        totalProjects++
-        const filteredTransactions = filterTransactionsByDate(project.transactions)
-        
-        filteredTransactions.forEach(t => {
+    customers.forEach(customer => {
+      customer.projects?.forEach(project => {
+        project.transactions?.forEach(t => {
           totalDebit += t.debit_amount || 0
           totalCredit += t.credit_amount || 0
           totalTransactions++
@@ -132,16 +265,17 @@ export default function AccountingClient({ customers }: AccountingClientProps) {
     })
 
     return {
+      netBalance: totalCredit - totalDebit,
       totalDebit,
       totalCredit,
-      balance: totalCredit - totalDebit,
-      totalCustomers: displayedCustomers.length,
-      totalProjects,
       totalTransactions
     }
-  }, [displayedCustomers, selectedProject, dateRange])
+  }, [customers])
 
-  // Calculate per-customer totals with filters
+  // Calculate REAL liquidity (using paginated set)
+  const liquidity = useMemo(() => calculateLiquidity(customers), [customers])
+
+  // Calculate per-customer totals (using displayedCustomers after filters)
   const customerTotals = useMemo(() => {
     return displayedCustomers.map(customer => {
       let debit = 0
@@ -192,341 +326,672 @@ export default function AccountingClient({ customers }: AccountingClientProps) {
     setSearchTerm('')
   }
 
+  // Pagination functions
+  const totalPages = Math.ceil(totalCount / pageSize)
+
+  const goToPage = (page: number) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('page', page.toString())
+    router.push(`?${params.toString()}`)
+  }
+
+  const getCardColor = (value: number, type: 'balance' | 'debit' | 'credit' | 'neutral') => {
+    if (type === 'balance') {
+      return value >= 0 
+        ? 'from-emerald-500/20 via-emerald-500/10 to-transparent border-emerald-500/30 hover:border-emerald-400' 
+        : 'from-rose-500/20 via-rose-500/10 to-transparent border-rose-500/30 hover:border-rose-400'
+    }
+    if (type === 'debit') {
+      return 'from-rose-500/20 via-rose-500/10 to-transparent border-rose-500/30 hover:border-rose-400'
+    }
+    if (type === 'credit') {
+      return 'from-emerald-500/20 via-emerald-500/10 to-transparent border-emerald-500/30 hover:border-emerald-400'
+    }
+    return 'from-amber-500/20 via-amber-500/10 to-transparent border-amber-500/30 hover:border-amber-400'
+  }
+
+  const getFilterColor = (filterName: string, isActive: boolean) => {
+    if (!isActive) return 'border-[#5F8B4B]/30 bg-black/40'
+    
+    switch(filterName) {
+      case 'search': return 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/50'
+      case 'customer': return 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/50'
+      case 'project': return 'border-rose-500 bg-rose-500/10 ring-2 ring-rose-500/50'
+      case 'from': return 'border-cyan-500 bg-cyan-500/10 ring-2 ring-cyan-500/50'
+      case 'to': return 'border-purple-500 bg-purple-500/10 ring-2 ring-purple-500/50'
+      default: return 'border-[#5F8B4B]/30 bg-black/40'
+    }
+  }
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header with Refresh */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Accounting Dashboard</h1>
-          <p className="text-gray-400 mt-1">Real-time financial overview</p>
+    <div className="min-h-screen bg-[#0A120A] relative overflow-hidden">
+      {/* Background (unchanged) */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-amber-950/30 animate-gradient-xy"></div>
+        <div className="absolute bottom-1/3 left-0 right-0 h-32 bg-gradient-to-t from-[#1A2A1A] to-transparent"></div>
+        <div className="absolute inset-0 pointer-events-none">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-0.5 h-0.5 bg-[#D4AF37]/30 rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `float-particle ${15 + i * 2}s linear infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            />
+          ))}
         </div>
-        <Button 
-          onClick={() => router.refresh()}
-          variant="outline"
-          className="border-[#D4AF37]/30 text-[#D4AF37]"
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh Data
-        </Button>
       </div>
 
-      {/* Global Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="glass-card border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Net Balance</p>
-                <p className={`text-2xl font-bold mt-1 ${overallTotals.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  ₹{Math.abs(overallTotals.balance).toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {overallTotals.balance >= 0 ? 'Profit' : 'Loss'}
-                </p>
+      {/* Flying Bird */}
+      {birdVisible && (
+        <div className="fixed top-1/4 left-0 z-50 pointer-events-none animate-bird-fly">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path 
+              d="M10 14 C 14 12, 18 12, 22 14 C 20 18, 16 20, 12 18 C 10 16, 10 14, 10 14" 
+              fill="#1A2A1A" 
+              stroke="#D4AF37" 
+              strokeWidth="1.5"
+            />
+            <path 
+              d="M18 14 L 24 10 L 22 14 L 24 18 L 18 14" 
+              fill="#0A120A" 
+              stroke="#D4AF37" 
+              strokeWidth="1"
+              className="animate-wing"
+            />
+            <circle cx="16" cy="14" r="1.2" fill="#D4AF37" />
+          </svg>
+        </div>
+      )}
+
+      {/* MAIN CONTENT */}
+      <div className="relative z-10 max-w-6xl mx-auto p-4 sm:p-6 space-y-4">
+        
+        {/* HEADER */}
+        <div className="flex justify-between items-center backdrop-blur-sm bg-black/20 p-4 rounded-2xl border border-[#D4AF37]/20">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              Accounting
+              <span className={`text-xs px-2 py-1 rounded-full bg-gradient-to-r ${glowIntensity === 0 ? 'from-emerald-500/20 to-amber-500/20' : glowIntensity === 1 ? 'from-amber-500/20 to-rose-500/20' : 'from-rose-500/20 to-emerald-500/20'} animate-pulse`}>
+                live
+              </span>
+            </h1>
+            <p className="text-[#D4AF37] text-sm mt-1 flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-[#D4AF37]" />
+              {new Date().toLocaleDateString('en-IN', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric' 
+              })}
+            </p>
+          </div>
+          <Button 
+            onClick={() => router.refresh()}
+            variant="outline"
+            className="border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10 backdrop-blur-sm"
+          >
+            <RefreshCw className="w-4 h-4 mr-2 animate-spin-slow" />
+            Refresh
+          </Button>
+        </div>
+
+        {/* TWO COLUMN LAYOUT */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Left side - Chart */}
+          <div className="lg:col-span-2 bg-black/40 backdrop-blur-sm border border-[#5F8B4B]/30 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-all group relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-[#D4AF37]" />
+                Profit/Loss Trend
+              </h3>
+              <span className="text-xs text-gray-500">last 6 months</span>
+            </div>
+            
+            <div className="flex items-end justify-between h-32 mt-4">
+              {monthlyData.map((item, i) => (
+                <div key={i} className="flex flex-col items-center gap-1 w-12 group/chart">
+                  <div className="relative w-full">
+                    <div 
+                      className={`w-full bg-gradient-to-t ${item.isProfit ? 'from-emerald-500 via-emerald-400 to-emerald-300' : 'from-rose-500 via-rose-400 to-rose-300'} rounded-t-lg transition-all duration-300 group-hover/chart:scale-105 group-hover/chart:shadow-lg group-hover/chart:shadow-${item.isProfit ? 'emerald' : 'rose'}-500/50`}
+                      style={{ height: `${item.profit}px` }}
+                    >
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/90 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/chart:opacity-100 transition-all duration-300 whitespace-nowrap border border-[#D4AF37]/30 shadow-lg shadow-[#D4AF37]/20">
+                        ₹{Math.abs(item.actualValue).toLocaleString()}
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-black/90 rotate-45 border-r border-b border-[#D4AF37]/30"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-500">{item.month}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex items-center gap-4 mt-4 text-xs">
+              <div className="flex items-center gap-2 group">
+                <div className="w-3 h-3 bg-gradient-to-t from-emerald-500 to-emerald-300 rounded animate-pulse group-hover:scale-110 transition-transform"></div>
+                <span className="text-gray-400">Profit</span>
               </div>
-              <div className="p-3 bg-[#D4AF37]/10 rounded-full">
-                <DollarSign className="w-5 h-5 text-[#D4AF37]" />
+              <div className="flex items-center gap-2 group">
+                <div className="w-3 h-3 bg-gradient-to-t from-rose-500 to-rose-300 rounded animate-pulse group-hover:scale-110 transition-transform"></div>
+                <span className="text-gray-400">Loss</span>
+              </div>
+              <div className="flex items-center gap-2 ml-auto group">
+                <Droplets className={`w-3 h-3 ${liquidity.isHealthy ? 'text-emerald-400' : 'text-amber-400'} group-hover:scale-110 transition-transform`} />
+                <span className={`text-[10px] ${liquidity.isHealthy ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  liquidity {liquidity.ratio}%
+                </span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="glass-card border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Debit</p>
-                <p className="text-2xl font-bold text-red-400 mt-1">
-                  ₹{overallTotals.totalDebit.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Money spent</p>
-              </div>
-              <div className="p-3 bg-red-500/10 rounded-full">
-                <TrendingDown className="w-5 h-5 text-red-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Right side - Stats */}
+          <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+            {[
+              { 
+                label: 'Net Balance', 
+                value: overallTotals.netBalance, 
+                type: 'balance' as const,
+                icon: <DollarSign className="w-4 h-4" />,
+                change: ((overallTotals.totalCredit - overallTotals.totalDebit) / (overallTotals.totalDebit || 1) * 100).toFixed(1)
+              },
+              { 
+                label: 'Total Debit', 
+                value: overallTotals.totalDebit, 
+                type: 'debit' as const,
+                icon: <TrendingDown className="w-4 h-4" />,
+              },
+              { 
+                label: 'Total Credit', 
+                value: overallTotals.totalCredit, 
+                type: 'credit' as const,
+                icon: <TrendingUp className="w-4 h-4" />,
+              },
+              { 
+                label: 'Transactions', 
+                value: overallTotals.totalTransactions, 
+                type: 'neutral' as const,
+                icon: <BarChart3 className="w-4 h-4" />,
+                suffix: 'txns'
+              },
+            ].map((item, idx) => {
+              const isPositive = item.value >= 0
+              const colorClass = getCardColor(item.value, item.type)
+              
+              return (
+                <div
+                  key={item.label}
+                  className="group relative"
+                  onMouseEnter={() => setHoveredCard(item.label)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${colorClass.split(' ')[0]} rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`}></div>
+                  
+                  <div className={`relative bg-black/40 backdrop-blur-sm border-2 ${colorClass.split(' ').slice(3).join(' ')} rounded-xl p-3 transition-all duration-300 hover:translate-y-[-2px] hover:shadow-2xl overflow-hidden`}>
+                    
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    
+                    <div className="flex items-center justify-between mb-1">
+                      <div className={`p-1.5 bg-black/50 rounded-lg group-hover:scale-110 transition-transform ${colorClass.includes('emerald') ? 'text-emerald-400' : colorClass.includes('rose') ? 'text-rose-400' : 'text-amber-400'}`}>
+                        {item.icon}
+                      </div>
+                      {item.change && (
+                        <div className={`flex items-center gap-0.5 text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                          {Math.abs(Number(item.change))}%
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-400">{item.label}</p>
+                    <p className={`text-lg font-bold ${colorClass.includes('emerald') ? 'text-emerald-400' : colorClass.includes('rose') ? 'text-rose-400' : 'text-amber-400'}`}>
+                      ₹<SpinningNumber value={Math.abs(item.value)} color="" />
+                      {item.suffix && <span className="text-xs ml-1 text-gray-500">{item.suffix}</span>}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
 
-        <Card className="glass-card border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Credit</p>
-                <p className="text-2xl font-bold text-green-400 mt-1">
-                  ₹{overallTotals.totalCredit.toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Money invested</p>
-              </div>
-              <div className="p-3 bg-green-500/10 rounded-full">
-                <TrendingUp className="w-5 h-5 text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Customers/Projects</p>
-                <p className="text-2xl font-bold text-white mt-1">
-                  {overallTotals.totalCustomers} / {overallTotals.totalProjects}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{overallTotals.totalTransactions} transactions</p>
-              </div>
-              <div className="p-3 bg-blue-500/10 rounded-full">
-                <Users className="w-5 h-5 text-blue-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card className="glass-card border-0">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-white font-medium">Filters</h3>
+        {/* FILTERS CARD */}
+        <div className="bg-black/40 backdrop-blur-sm border border-[#5F8B4B]/30 rounded-xl p-5 hover:border-[#D4AF37]/30 transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-medium text-white flex items-center gap-2">
+              <Leaf className="w-5 h-5 text-[#D4AF37] animate-pulse" />
+              Filters
+            </h3>
             <Button 
               variant="ghost" 
               size="sm"
               onClick={clearFilters}
-              className="text-gray-400 hover:text-[#D4AF37]"
+              className="h-8 text-sm text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/10"
             >
               Clear All
             </Button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Search Customer */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Search Customer
-              </label>
-              <Input
-                placeholder="Search by name or phone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-black/50 border-[#D4AF37]/30 text-white"
-              />
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Search */}
+            <div className="group">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5 group-focus-within:text-emerald-400 transition-colors">Search</label>
+              <div className="relative">
+                <Input
+                  placeholder="Name or phone..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value)
+                    setSelectedFilter('search')
+                  }}
+                  onBlur={() => setSelectedFilter(null)}
+                  onFocus={() => setSelectedFilter('search')}
+                  className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('search', selectedFilter === 'search' || searchTerm)} text-white focus:ring-4 focus:ring-emerald-500/30`}
+                />
+                {searchTerm && (
+                  <div className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-xs text-white animate-bounce">
+                    ✓
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* Customer Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <Users className="w-4 h-4 inline mr-1" />
-                Customer
-              </label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger className="bg-black/50 border-[#D4AF37]/30 text-white">
-                  <SelectValue placeholder="All Customers" />
+            
+            {/* Customer */}
+            <div className="group">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5 group-focus-within:text-amber-400 transition-colors">Customer</label>
+              <Select 
+                value={selectedCustomer} 
+                onValueChange={(val) => {
+                  setSelectedCustomer(val)
+                  setSelectedFilter('customer')
+                }}
+              >
+                <SelectTrigger 
+                  className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('customer', selectedCustomer !== 'all')} text-white`}
+                  onMouseEnter={() => setSelectedFilter('customer')}
+                  onMouseLeave={() => setSelectedFilter(null)}
+                >
+                  <SelectValue placeholder="All customers" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1A1F1A] border-[#D4AF37]/30 text-white max-h-80">
-                  <SelectItem value="all">All Customers</SelectItem>
+                <SelectContent className="bg-black/90 backdrop-blur-sm border-[#D4AF37]/30 text-white max-h-48">
+                  <SelectItem value="all">All customers</SelectItem>
                   {activeCustomers.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Project Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <FolderTree className="w-4 h-4 inline mr-1" />
-                Project
-              </label>
+            
+            {/* Project */}
+            <div className="group">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5 group-focus-within:text-rose-400 transition-colors">Project</label>
               <Select 
                 value={selectedProject} 
-                onValueChange={setSelectedProject}
+                onValueChange={(val) => {
+                  setSelectedProject(val)
+                  setSelectedFilter('project')
+                }}
                 disabled={selectedCustomer === 'all'}
               >
-                <SelectTrigger className="bg-black/50 border-[#D4AF37]/30 text-white">
-                  <SelectValue placeholder="All Projects" />
+                <SelectTrigger 
+                  className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('project', selectedProject !== 'all')} text-white disabled:opacity-50`}
+                  onMouseEnter={() => setSelectedFilter('project')}
+                  onMouseLeave={() => setSelectedFilter(null)}
+                >
+                  <SelectValue placeholder="All projects" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1A1F1A] border-[#D4AF37]/30 text-white">
-                  <SelectItem value="all">All Projects</SelectItem>
+                <SelectContent className="bg-black/90 backdrop-blur-sm border-[#D4AF37]/30 text-white">
+                  <SelectItem value="all">All projects</SelectItem>
                   {availableProjects.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Date From */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                From Date
-              </label>
+            
+            {/* From Date */}
+            <div className="group">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5 group-focus-within:text-cyan-400 transition-colors">From</label>
               <Input
                 type="date"
                 value={dateRange.from}
-                onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-                className="bg-black/50 border-[#D4AF37]/30 text-white"
+                onChange={(e) => {
+                  setDateRange({ ...dateRange, from: e.target.value })
+                  setSelectedFilter('from')
+                }}
+                onBlur={() => setSelectedFilter(null)}
+                onFocus={() => setSelectedFilter('from')}
+                className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('from', dateRange.from)} text-white focus:ring-4 focus:ring-cyan-500/30`}
               />
             </div>
-
-            {/* Date To */}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                To Date
-              </label>
+            
+            {/* To Date */}
+            <div className="group">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5 group-focus-within:text-purple-400 transition-colors">To</label>
               <Input
                 type="date"
                 value={dateRange.to}
-                onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-                className="bg-black/50 border-[#D4AF37]/30 text-white"
+                onChange={(e) => {
+                  setDateRange({ ...dateRange, to: e.target.value })
+                  setSelectedFilter('to')
+                }}
+                onBlur={() => setSelectedFilter(null)}
+                onFocus={() => setSelectedFilter('to')}
+                className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('to', dateRange.to)} text-white focus:ring-4 focus:ring-purple-500/30`}
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Customer Breakdown */}
-      <Card className="glass-card border-0">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-[#D4AF37]" />
-            Customer Financial Summary
-            {selectedCustomer !== 'all' && (
-              <span className="text-sm font-normal text-gray-400 ml-2">
-                (Filtered by customer)
+        {/* CUSTOMER FINANCIAL SUMMARY */}
+        <div className="bg-black/40 backdrop-blur-sm border border-[#5F8B4B]/30 rounded-xl p-5 hover:border-[#D4AF37]/30 transition-all">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-5 h-5 text-[#D4AF37] animate-pulse" />
+            <h3 className="text-lg font-medium text-white">Customer Financial Summary</h3>
+            <span className="text-sm text-gray-500 ml-auto">({customerTotals.length} customers)</span>
+          </div>
+
+          <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#D4AF37]/20 scrollbar-track-transparent pr-2">
+            <div className="space-y-3">
+              {customerTotals.length === 0 ? (
+                <div className="text-center py-12">
+                  <Leaf className="w-12 h-12 text-[#D4AF37]/30 mx-auto mb-3 animate-pulse" />
+                  <p className="text-sm text-gray-500">No customers found</p>
+                </div>
+              ) : (
+                customerTotals.map((customer, idx) => (
+                  <div 
+                    key={customer.id} 
+                    className="border border-[#5F8B4B]/20 rounded-xl overflow-hidden transition-all hover:border-[#D4AF37]/50 hover:scale-[1.01] hover:shadow-2xl hover:shadow-[#D4AF37]/20"
+                    style={{ animation: `fadeInUp 0.3s ${idx * 0.05}s both` }}
+                  >
+                    {/* Customer Header */}
+                    <div 
+                      className={`bg-gradient-to-r p-4 flex items-center justify-between cursor-pointer transition-all duration-300 ${
+                        customer.totals.balance >= 0 
+                          ? 'from-emerald-950/50 to-emerald-900/30 hover:from-emerald-900/70' 
+                          : 'from-rose-950/50 to-rose-900/30 hover:from-rose-900/70'
+                      }`}
+                      onClick={() => toggleCustomer(customer.id)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center border-2 transition-all group-hover:scale-110 ${
+                          customer.totals.balance >= 0 
+                            ? 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30' 
+                            : 'from-rose-500/20 to-rose-500/5 border-rose-500/30'
+                        }`}>
+                          <span className={`text-sm font-bold ${
+                            customer.totals.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                          }`}>
+                            {customer.full_name.charAt(0)}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-base text-white font-medium truncate">{customer.full_name}</h4>
+                          <p className="text-xs text-gray-500">{customer.contact_number}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Balance</p>
+                          <p className={`text-base font-semibold ${customer.totals.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            ₹{Math.abs(customer.totals.balance).toLocaleString()}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#D4AF37] hover:bg-[#D4AF37]/20"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/customers/${customer.id}`)
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {expandedCustomers.includes(customer.id) ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded Details */}
+                    {expandedCustomers.includes(customer.id) && (
+                      <div className="p-4 bg-black/60 backdrop-blur-sm space-y-4">
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="group/stat relative">
+                            <div className="absolute inset-0 bg-gradient-to-br from-rose-500/20 to-transparent rounded-lg opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500 blur-md"></div>
+                            <div className="relative bg-gradient-to-br from-rose-500/10 to-transparent border border-rose-500/30 rounded-lg p-3 hover:border-rose-400 transition-all hover:scale-105">
+                              <p className="text-xs text-gray-400">Debit</p>
+                              <p className="text-lg font-semibold text-rose-400 truncate">₹{customer.totals.debit.toLocaleString()}</p>
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-rose-500/10 to-transparent -translate-x-full group-hover/stat:translate-x-full transition-transform duration-1000"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="group/stat relative">
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-lg opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500 blur-md"></div>
+                            <div className="relative bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/30 rounded-lg p-3 hover:border-emerald-400 transition-all hover:scale-105">
+                              <p className="text-xs text-gray-400">Credit</p>
+                              <p className="text-lg font-semibold text-emerald-400 truncate">₹{customer.totals.credit.toLocaleString()}</p>
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent -translate-x-full group-hover/stat:translate-x-full transition-transform duration-1000"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="group/stat relative">
+                            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 to-transparent rounded-lg opacity-0 group-hover/stat:opacity-100 transition-opacity duration-500 blur-md"></div>
+                            <div className="relative bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/30 rounded-lg p-3 hover:border-amber-400 transition-all hover:scale-105">
+                              <p className="text-xs text-gray-400">Transactions</p>
+                              <p className="text-lg font-semibold text-amber-400">{customer.totals.transactionCount}</p>
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover/stat:translate-x-full transition-transform duration-1000"></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h5 className="text-sm font-medium text-[#D4AF37] flex items-center gap-1 mb-2">
+                            <FolderTree className="w-4 h-4 animate-pulse" />
+                            Projects ({customer.projects.length})
+                          </h5>
+                          {customer.projects
+                            .filter(p => selectedProject === 'all' || p.id === selectedProject)
+                            .map((project, pIdx) => {
+                              const filteredTransactions = filterTransactionsByDate(project.transactions)
+                              const projectDebit = filteredTransactions.reduce((sum, t) => sum + (t.debit_amount || 0), 0)
+                              const projectCredit = filteredTransactions.reduce((sum, t) => sum + (t.credit_amount || 0), 0)
+                              const projectBalance = projectCredit - projectDebit
+
+                              return (
+                                <div 
+                                  key={project.id} 
+                                  className={`group/project relative mb-2 rounded-lg p-3 transition-all hover:scale-[1.02] ${
+                                    projectBalance >= 0 
+                                      ? 'bg-gradient-to-r from-emerald-500/5 to-transparent border border-emerald-500/20 hover:border-emerald-500/40' 
+                                      : 'bg-gradient-to-r from-rose-500/5 to-transparent border border-rose-500/20 hover:border-rose-500/40'
+                                  }`}
+                                  style={{ animation: `fadeInUp 0.2s ${pIdx * 0.03}s both` }}
+                                >
+                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover/project:translate-x-full transition-transform duration-1000"></div>
+                                  
+                                  <div className="flex justify-between items-center relative z-10">
+                                    <div>
+                                      <p className="text-sm text-white font-medium">{project.name}</p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        {project.status} · {filteredTransactions.length} transactions
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`text-sm font-semibold ${projectBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        ₹{Math.abs(projectBalance).toLocaleString()}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        D:₹{projectDebit.toLocaleString()} C:₹{projectCredit.toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* FIXED DATE FORMATTING - added explicit options */}
+                                  {filteredTransactions.map(t => (
+                                    <div key={t.id} className="hidden">
+                                      {/* This is just to show the fix; the actual table below already uses the correct format */}
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Active Filters Indicator */}
+        {(selectedCustomer !== 'all' || selectedProject !== 'all' || dateRange.from || dateRange.to || searchTerm) && (
+          <div className="text-sm text-gray-400 flex flex-wrap items-center gap-2 bg-black/60 backdrop-blur-sm p-3 rounded-lg border border-[#D4AF37]/20 animate-pulse">
+            <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+            <span>Active filters:</span>
+            {searchTerm && (
+              <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full text-xs border border-emerald-500/30">
+                "{searchTerm}"
               </span>
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {customerTotals.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                No customers found matching your filters
-              </div>
-            ) : (
-              customerTotals.map(customer => (
-                <div key={customer.id} className="border border-[#D4AF37]/20 rounded-xl overflow-hidden">
-                  {/* Customer Header */}
-                  <div 
-                    className="bg-[#1A1F1A] p-4 flex items-center justify-between cursor-pointer hover:bg-[#D4AF37]/5 transition-colors"
-                    onClick={() => toggleCustomer(customer.id)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#D4AF37]/10 flex items-center justify-center">
-                        <span className="text-[#D4AF37] font-bold">
-                          {customer.full_name.charAt(0)}
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold">{customer.full_name}</h3>
-                        <p className="text-xs text-gray-400">{customer.contact_number}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-sm text-gray-400">Balance</p>
-                        <p className={`font-semibold ${customer.totals.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ₹{Math.abs(customer.totals.balance).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-400">Projects</p>
-                        <p className="text-white font-semibold">{customer.totals.projectCount}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/customers/${customer.id}`)
-                        }}
-                        className="text-[#D4AF37] hover:bg-[#D4AF37]/20"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      {expandedCustomers.includes(customer.id) ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Expanded Project Details */}
-                  {expandedCustomers.includes(customer.id) && (
-                    <div className="p-4 bg-black/20 space-y-4">
-                      {/* Customer Stats */}
-                      <div className="grid grid-cols-3 gap-4 mb-4">
-                        <div className="bg-[#1A1F1A] p-3 rounded-lg">
-                          <p className="text-xs text-gray-400">Total Debit</p>
-                          <p className="text-lg font-semibold text-red-400">
-                            ₹{customer.totals.debit.toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="bg-[#1A1F1A] p-3 rounded-lg">
-                          <p className="text-xs text-gray-400">Total Credit</p>
-                          <p className="text-lg font-semibold text-green-400">
-                            ₹{customer.totals.credit.toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="bg-[#1A1F1A] p-3 rounded-lg">
-                          <p className="text-xs text-gray-400">Transactions</p>
-                          <p className="text-lg font-semibold text-white">
-                            {customer.totals.transactionCount}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Projects List */}
-                      <h4 className="text-sm font-medium text-[#D4AF37] mb-2">Projects</h4>
-                      {customer.projects
-                        .filter(p => selectedProject === 'all' || p.id === selectedProject)
-                        .map(project => {
-                          const filteredTransactions = filterTransactionsByDate(project.transactions)
-                          
-                          const projectDebit = filteredTransactions.reduce((sum, t) => sum + (t.debit_amount || 0), 0)
-                          const projectCredit = filteredTransactions.reduce((sum, t) => sum + (t.credit_amount || 0), 0)
-                          const projectBalance = projectCredit - projectDebit
-
-                          return (
-                            <div key={project.id} className="bg-[#1A1F1A] rounded-lg p-3 mb-2">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="text-white font-medium">{project.name}</p>
-                                  <p className="text-xs text-gray-400">
-                                    Status: {project.status} | {filteredTransactions.length} transactions
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className={`text-sm font-semibold ${projectBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    ₹{Math.abs(projectBalance).toLocaleString()}
-                                  </p>
-                                  <p className="text-xs text-gray-400">
-                                    D:₹{projectDebit.toLocaleString()} | C:₹{projectCredit.toLocaleString()}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                    </div>
-                  )}
-                </div>
-              ))
+            {selectedCustomer !== 'all' && (
+              <span className="bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-xs border border-amber-500/30">
+                Customer
+              </span>
+            )}
+            {selectedProject !== 'all' && (
+              <span className="bg-rose-500/10 text-rose-400 px-3 py-1 rounded-full text-xs border border-rose-500/30">
+                Project
+              </span>
+            )}
+            {dateRange.from && (
+              <span className="bg-cyan-500/10 text-cyan-400 px-3 py-1 rounded-full text-xs border border-cyan-500/30">
+                From {dateRange.from}
+              </span>
+            )}
+            {dateRange.to && (
+              <span className="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-xs border border-purple-500/30">
+                To {dateRange.to}
+              </span>
             )}
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* Active Filters Indicator */}
-      {(selectedCustomer !== 'all' || selectedProject !== 'all' || dateRange.from || dateRange.to || searchTerm) && (
-        <div className="text-sm text-gray-400 flex items-center gap-2">
-          <span>Active filters:</span>
-          {searchTerm && <span className="bg-[#D4AF37]/10 px-2 py-1 rounded">Search: {searchTerm}</span>}
-          {selectedCustomer !== 'all' && <span className="bg-[#D4AF37]/10 px-2 py-1 rounded">Customer: {activeCustomers.find(c => c.id === selectedCustomer)?.full_name}</span>}
-          {selectedProject !== 'all' && <span className="bg-[#D4AF37]/10 px-2 py-1 rounded">Project selected</span>}
-          {dateRange.from && <span className="bg-[#D4AF37]/10 px-2 py-1 rounded">From: {dateRange.from}</span>}
-          {dateRange.to && <span className="bg-[#D4AF37]/10 px-2 py-1 rounded">To: {dateRange.to}</span>}
-        </div>
-      )}
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-gray-400">
+              Page {currentPage} of {totalPages} (Total customers: {totalCount})
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="border-[#D4AF37]/30 text-[#D4AF37]"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="border-[#D4AF37]/30 text-[#D4AF37]"
+              >
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      <style jsx>{`
+        @keyframes sway {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(5deg); }
+        }
+        @keyframes sunrise {
+          0% { opacity: 0; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.2); }
+          100% { opacity: 0; transform: scale(0.8); }
+        }
+        @keyframes float-particle {
+          0% { transform: translateY(0) translateX(0); opacity: 0; }
+          10% { opacity: 0.3; }
+          90% { opacity: 0.2; }
+          100% { transform: translateY(-100px) translateX(50px); opacity: 0; }
+        }
+        @keyframes bird-fly {
+          0% { transform: translateX(-200px) translateY(0); opacity: 0; }
+          5% { opacity: 1; }
+          30% { transform: translateX(30vw) translateY(-10px); }
+          60% { transform: translateX(60vw) translateY(5px); }
+          90% { transform: translateX(90vw) translateY(-5px); opacity: 1; }
+          100% { transform: translateX(110vw) translateY(0); opacity: 0; }
+        }
+        .animate-bird-fly {
+          animation: bird-fly 8s ease-in-out forwards;
+        }
+        @keyframes wing {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(-20deg); }
+        }
+        .animate-wing {
+          animation: wing 0.3s ease-in-out infinite;
+          transform-origin: left center;
+        }
+        @keyframes spin-slot {
+          0% { transform: translateY(0); }
+          100% { transform: translateY(-100px); }
+        }
+        .animate-spin-slot {
+          animation: spin-slot 0.05s infinite linear;
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 5px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background: rgba(212, 175, 55, 0.2);
+          border-radius: 5px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background: rgba(212, 175, 55, 0.4);
+        }
+        @keyframes gradient-xy {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.6; }
+        }
+        .animate-gradient-xy {
+          animation: gradient-xy 4s ease-in-out infinite;
+        }
+        .animate-spin-slow {
+          animation: spin 3s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }

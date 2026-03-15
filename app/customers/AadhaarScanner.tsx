@@ -3,104 +3,211 @@
 import { useState } from 'react'
 import { Camera, X, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import Image from 'next/image'
+import Tesseract from 'tesseract.js'
 
 interface AadhaarScannerProps {
   customerId: string
   onScanComplete: (data: {
     imageUrl: string
+    name?: string
+    aadhaarNumber?: string
+    dob?: string
+    gender?: string
+    address?: string
   }) => void
   onClose: () => void
 }
 
+// Optional preprocessing – disabled for now to test raw OCR
+// async function preprocessImage(file: File): Promise<File> { ... }
+
 export default function AadhaarScanner({ customerId, onScanComplete, onClose }: AadhaarScannerProps) {
   const [isUploading, setIsUploading] = useState(false)
+  const [isOcrRunning, setIsOcrRunning] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [extractedFields, setExtractedFields] = useState<string[]>([])
+
+  const parseAadhaarText = (text: string) => {
+    console.log('Raw OCR text for parsing:', text) // <-- DEBUG
+
+    const result: { aadhaarNumber?: string; dob?: string; gender?: string } = {}
+
+    // Aadhaar number: 12 digits (optionally with spaces)
+    const aadhaarMatch = text.match(/\d{4}\s?\d{4}\s?\d{4}/)
+    if (aadhaarMatch) {
+      result.aadhaarNumber = aadhaarMatch[0].replace(/\s/g, '')
+      console.log('Found Aadhaar:', result.aadhaarNumber)
+    }
+
+    // DOB: DD/MM/YYYY or DD-MM-YYYY
+    const dobMatch = text.match(/\b\d{2}[\/-]\d{2}[\/-]\d{4}\b/)
+    if (dobMatch) {
+      result.dob = dobMatch[0]
+      console.log('Found DOB:', result.dob)
+    }
+
+    // Gender: always in English on Aadhaar
+    const genderMatch = text.match(/\b(Male|Female)\b/i)
+    if (genderMatch) {
+      result.gender = genderMatch[0].charAt(0).toUpperCase() + genderMatch[0].slice(1).toLowerCase()
+      console.log('Found Gender:', result.gender)
+    }
+
+    return result
+  }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Show preview
+    // Preview
     const reader = new FileReader()
     reader.onloadend = () => setPreview(reader.result as string)
     reader.readAsDataURL(file)
 
     setIsUploading(true)
     setError(null)
+    setExtractedFields([])
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('customerId', customerId)
+      // 1. Upload to Supabase – now expects `path` in response
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+      uploadFormData.append('customerId', customerId)
 
-      const response = await fetch('/api/extract-aadhaar', {
+      const uploadRes = await fetch('/api/extract-aadhaar', {
         method: 'POST',
-        body: formData,
+        body: uploadFormData,
       })
 
-      const data = await response.json()
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json().catch(() => ({}))
+        throw new Error(errorData.error || `Upload failed (${uploadRes.status})`)
+      }
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload Aadhaar')
+      const uploadData = await uploadRes.json()
+      if (!uploadData.path) throw new Error('No image path returned')
+      // Keep the field name as `imageUrl` for backward compatibility,
+      // but the value is now a storage path, not a public URL.
+      const imagePath = uploadData.path
+
+      // 2. Run OCR on the original file (no preprocessing)
+      setIsOcrRunning(true)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 sec timeout
+
+      let text = ''
+      try {
+        console.log('Starting Tesseract recognition...')
+        const result = await Tesseract.recognize(file, 'eng', {
+          logger: (m) => {
+            console.log('OCR progress:', m)
+          },
+          // If you downloaded worker locally, use these; otherwise remove them.
+          // workerPath: '/tesseract/worker.min.js',
+          // corePath: '/tesseract/tesseract-core.wasm.js',
+        }, {
+          signal: controller.signal,
+        })
+        text = result.data.text
+        console.log('OCR completed, raw text:', text)
+      } catch (ocrErr: any) {
+        console.error('OCR error:', ocrErr)
+        if (ocrErr.name === 'AbortError') {
+          throw new Error('OCR timed out – please try a clearer image')
+        }
+        throw new Error(`OCR failed: ${ocrErr.message || 'Unknown error'}`)
+      } finally {
+        clearTimeout(timeoutId)
+      }
+
+      // 3. Parse the text
+      const extracted = parseAadhaarText(text)
+
+      const found = []
+      if (extracted.aadhaarNumber) found.push('Aadhaar number')
+      if (extracted.dob) found.push('DOB')
+      if (extracted.gender) found.push('gender')
+      setExtractedFields(found)
+
+      if (found.length === 0) {
+        setError('Could not auto‑fill any fields. Please enter them manually.')
+        console.warn('No fields extracted from OCR text.')
       }
 
       setSuccess(true)
-      onScanComplete({ imageUrl: data.imageUrl })
-      
-      setTimeout(() => onClose(), 1500)
+      onScanComplete({
+        imageUrl: imagePath,  // still called imageUrl for compatibility
+        aadhaarNumber: extracted.aadhaarNumber,
+        dob: extracted.dob,
+        gender: extracted.gender,
+      })
 
-    } catch (err: any) {
-      setError(err.message)
+      if (found.length > 0) {
+        setTimeout(() => onClose(), 2000)
+      }
+    } catch (err: unknown) {
+      console.error('Full error:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsUploading(false)
+      setIsOcrRunning(false)
     }
   }
+
+  const isProcessing = isUploading || isOcrRunning
 
   return (
     <div className="bg-[#0A100A] border border-[#D4AF37]/20 rounded-xl p-4">
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-semibold text-[#D4AF37]">Upload Aadhaar</h3>
+        <h3 className="text-sm font-semibold text-[#D4AF37]">Scan Aadhaar</h3>
         <button onClick={onClose} className="p-1 hover:bg-[#D4AF37]/10 rounded">
           <X className="w-4 h-4 text-gray-400" />
         </button>
       </div>
 
-      {!preview && !isUploading && !success && (
+      {!preview && !isProcessing && !success && (
         <div className="border border-dashed border-[#D4AF37]/30 rounded-lg p-4 text-center">
           <input
             type="file"
-            id="aadhaar-upload"
+            id="aadhaar-scan"
             accept="image/*"
             className="hidden"
             onChange={handleFileUpload}
           />
-          <label htmlFor="aadhaar-upload" className="cursor-pointer flex flex-col items-center gap-2">
+          <label htmlFor="aadhaar-scan" className="cursor-pointer flex flex-col items-center gap-2">
             <Camera className="w-8 h-8 text-[#D4AF37]" />
-            <span className="text-sm text-white">Upload Aadhaar image</span>
-            <span className="text-xs text-gray-400">Image will be stored securely</span>
+            <span className="text-sm text-white">Upload Aadhaar to scan</span>
+            <span className="text-xs text-gray-400">Auto-fills all details</span>
           </label>
         </div>
       )}
 
-      {preview && !isUploading && !success && (
-        <div className="relative aspect-square w-full max-w-[150px] mx-auto rounded-lg overflow-hidden">
+      {preview && !isProcessing && !success && (
+        <div className="relative aspect-[1.6/1] w-full max-w-md mx-auto rounded-lg overflow-hidden">
           <Image src={preview} alt="Preview" fill className="object-cover" />
         </div>
       )}
 
-      {isUploading && (
+      {isProcessing && (
         <div className="text-center py-4">
           <Loader2 className="w-6 h-6 text-[#D4AF37] animate-spin mx-auto" />
-          <p className="text-xs text-gray-400 mt-2">Uploading...</p>
+          <p className="text-xs text-gray-400 mt-2">
+            {isUploading ? 'Uploading...' : 'Scanning...'}
+          </p>
         </div>
       )}
 
       {success && (
         <div className="text-center py-4">
           <CheckCircle className="w-8 h-8 text-green-400 mx-auto" />
-          <p className="text-xs text-green-400 mt-2">Upload successful!</p>
+          <p className="text-xs text-green-400 mt-2">
+            {extractedFields.length > 0
+              ? `✓ Found: ${extractedFields.join(', ')}`
+              : 'Upload complete (no fields auto‑filled)'}
+          </p>
         </div>
       )}
 

@@ -12,8 +12,11 @@ interface TransactionData {
   count?: number | null
 }
 
+// Define the allowed transaction types as a union type
+export type TransactionType = "labour" | "sprinkler" | "transport" | "food" | "ploughing" | "tractor" | "dung" | "investment";
+
 // Map frontend type names to database transaction_type_id
-const typeToIdMap: Record<string, number> = {
+const typeToIdMap: Record<TransactionType, number> = {
   'labour': 1,
   'sprinkler': 2,
   'transport': 3,
@@ -25,7 +28,7 @@ const typeToIdMap: Record<string, number> = {
 }
 
 // Map database id to frontend type name
-const idToTypeMap: Record<number, string> = {
+const idToTypeMap: Record<number, TransactionType> = {
   1: 'labour',
   2: 'sprinkler',
   3: 'transport',
@@ -54,7 +57,7 @@ export async function createTransaction(projectId: string, data: TransactionData
   const nextSequence = (maxSeq?.sequence_number || 0) + 1
 
   // Get the transaction_type_id from our map
-  const transaction_type_id = typeToIdMap[data.type]
+  const transaction_type_id = typeToIdMap[data.type as TransactionType]
   if (!transaction_type_id) {
     return { error: `Invalid transaction type: ${data.type}` }
   }
@@ -112,8 +115,8 @@ export async function getTransactionsByProject(projectId: string) {
     id: t.id,
     serial_no: t.sequence_number,
     date: t.date,
-    // ✅ FIXED: Use idToTypeMap to convert transaction_type_id to type string
-    type: idToTypeMap[t.transaction_type_id] || 'unknown',
+    // ✅ FIXED: Use type assertion to ensure correct union type
+    type: idToTypeMap[t.transaction_type_id] as TransactionType,
     amount: t.debit_amount > 0 ? t.debit_amount : t.credit_amount,
     description: t.description || '',
     count: t.quantity || null,
@@ -136,7 +139,7 @@ export async function updateTransaction(id: string, data: Partial<TransactionDat
 
   // If type is being updated, convert to transaction_type_id
   if (data.type) {
-    const transaction_type_id = typeToIdMap[data.type]
+    const transaction_type_id = typeToIdMap[data.type as TransactionType]
     if (!transaction_type_id) {
       return { error: `Invalid transaction type: ${data.type}` }
     }

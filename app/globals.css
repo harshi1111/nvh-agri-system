@@ -36,6 +36,20 @@ body {
   }
 }
 
+@keyframes bird-fly {
+  0% { transform: translateX(-200px) translateY(0); opacity: 0; }
+  5% { opacity: 1; }
+  30% { transform: translateX(30vw) translateY(-10px); }
+  60% { transform: translateX(60vw) translateY(5px); }
+  90% { transform: translateX(90vw) translateY(-5px); opacity: 1; }
+  100% { transform: translateX(110vw) translateY(0); opacity: 0; }
+}
+
+@keyframes wing {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-20deg); }
+}
+
 /* ===============================
    Utilities
 ================================ */
@@ -54,6 +68,17 @@ body {
   /* Gold pulse animation */
   .gold-pulse {
     animation: gold-pulse 1.5s infinite;
+  }
+
+  /* Bird fly animation */
+  .animate-bird-fly {
+    animation: bird-fly 8s ease-in-out forwards;
+  }
+
+  /* Wing flap animation */
+  .animate-wing {
+    animation: wing 0.3s ease-in-out infinite;
+    transform-origin: left center;
   }
 }
 

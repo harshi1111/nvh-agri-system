@@ -28,7 +28,6 @@ const navItems = [
   { name: 'Reports', href: '/reports', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Archive', href: '/settings/archive', icon: Archive }, 
-  
 ]
 
 export default function Sidebar() {
@@ -36,7 +35,7 @@ export default function Sidebar() {
   const router = useRouter()
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
-  const { collapsed, setCollapsed } = useSidebar() // use context
+  const { collapsed, setCollapsed } = useSidebar()
 
   useEffect(() => {
     const getUser = async () => {
@@ -53,7 +52,6 @@ export default function Sidebar() {
 
   const toggleSidebar = () => setCollapsed(!collapsed)
 
-  // Personalised greeting
   const getGreeting = () => {
     if (!user) return 'Welcome!'
     const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Farmer'
@@ -78,12 +76,10 @@ export default function Sidebar() {
                 sizes="(max-width: 768px) 100vw, 33vw" 
                 className="object-contain"
                 onError={(e) => {
-                  // If image fails to load, replace with fallback
                   e.currentTarget.style.display = 'none';
                   e.currentTarget.parentElement?.classList.add('fallback-logo');
                 }}
               />
-              {/* Fallback div will be shown if image fails */}
               <div className="absolute inset-0 hidden fallback-logo:flex items-center justify-center bg-[#D4AF37] rounded-lg">
                 <span className="text-black font-bold text-xl">NVH</span>
               </div>
@@ -129,7 +125,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname.startsWith(item.href)
+          const isActive = pathname === item.href // exact match
           return (
             <Link
               key={item.href}
@@ -143,7 +139,7 @@ export default function Sidebar() {
             >
               <item.icon className="w-5 h-5" />
               {!collapsed && <span className="font-medium">{item.name}</span>}
-              {!collapsed && isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#D4AF37] gold-pulse" />}
+              {!collapsed && isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />}
             </Link>
           )
         })}

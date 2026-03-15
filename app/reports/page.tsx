@@ -1,35 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import ReportsClient from './ReportsClient'
-import { notFound } from 'next/navigation'
 
-// Define types for the data structure
-interface Transaction {
-  id: string
-  sequence_number: number
-  date: string
-  transaction_type_id: number
-  quantity: number | null
-  unit: string | null
-  debit_amount: number | null
-  credit_amount: number | null
-  description: string | null
-}
-
-interface Project {
-  id: string
-  name: string
-  status: string
-  acres: number | null
-  transactions: Transaction[]
-}
-
-interface Customer {
-  id: string
-  full_name: string
-  contact_number: string
-  is_active: boolean
-  projects: Project[]
-}
+const PAGE_SIZE = 10 // customers per page
 
 // Map database id to frontend type name
 const idToTypeMap: Record<number, string> = {
@@ -43,10 +15,29 @@ const idToTypeMap: Record<number, string> = {
   8: 'investment'
 }
 
-export default async function ReportsPage() {
+interface PageProps {
+  searchParams: Promise<{ page?: string }>
+}
+
+export default async function ReportsPage({ searchParams }: PageProps) {
+  const { page = '1' } = await searchParams
+  const currentPage = parseInt(page, 10)
+  const from = (currentPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
   const supabase = await createClient()
 
-  // Fetch all data needed for reports
+  // Get total count of active customers
+  const { count: totalCount } = await supabase
+    .from('customers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+
+  if (!totalCount) {
+    return <ReportsClient customers={[]} totalCount={0} currentPage={1} pageSize={PAGE_SIZE} />
+  }
+
+  // Fetch paginated customers with projects and transactions
   const { data: customers, error } = await supabase
     .from('customers')
     .select(`
@@ -71,26 +62,24 @@ export default async function ReportsPage() {
     `)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   if (error) {
     console.error('Error fetching customers:', error)
-    return <ReportsClient customers={[]} />
+    return <ReportsClient customers={[]} totalCount={0} currentPage={1} pageSize={PAGE_SIZE} />
   }
 
-  // Type assertion for the fetched data
-  const typedCustomers = (customers || []) as Customer[]
-
-  // Transform the data
-  const transformedCustomers = typedCustomers.map((customer: Customer) => ({
+  // Transform data
+  const transformedCustomers = customers.map(customer => ({
     ...customer,
-    projects: customer.projects.map((project: Project) => ({
+    projects: customer.projects.map(project => ({
       ...project,
-      transactions: project.transactions.map((transaction: Transaction) => {
+      transactions: project.transactions.map(transaction => {
         const type = idToTypeMap[transaction.transaction_type_id] || 'unknown'
         return {
           id: transaction.id,
           date: transaction.date,
-          type: type,
+          type,
           description: transaction.description || '',
           quantity: transaction.quantity || null,
           unit: transaction.unit || null,
@@ -101,5 +90,12 @@ export default async function ReportsPage() {
     }))
   }))
 
-  return <ReportsClient customers={transformedCustomers} />
+  return (
+    <ReportsClient 
+      customers={transformedCustomers} 
+      totalCount={totalCount} 
+      currentPage={currentPage} 
+      pageSize={PAGE_SIZE}
+    />
+  )
 }

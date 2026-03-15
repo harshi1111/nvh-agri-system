@@ -4,7 +4,22 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Customer } from '@/types/customers'
 import { updateCustomer } from '@/lib/actions/customers'
-import { X } from 'lucide-react'
+import { Camera, X } from 'lucide-react'
+import dynamic from 'next/dynamic'
+
+// Dynamically import AadhaarScanner with a loading fallback
+const AadhaarScanner = dynamic(
+  () => import('@/app/customers/AadhaarScanner'),
+  {
+    loading: () => (
+      <div className="bg-[#0A100A] border border-[#D4AF37]/20 rounded-xl p-8 text-center">
+        <div className="w-8 h-8 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <p className="text-sm text-gray-400">Loading scanner...</p>
+      </div>
+    ),
+    ssr: false
+  }
+)
 
 interface EditCustomerModalProps {
   isOpen: boolean
@@ -17,6 +32,7 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onCustome
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showAadhaarScanner, setShowAadhaarScanner] = useState(false)
   
   // Form state - using is_active (boolean)
   const [formData, setFormData] = useState({
@@ -45,6 +61,31 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onCustome
       })
     }
   }, [customer])
+
+  // Helper to convert date from DD/MM/YYYY to YYYY-MM-DD
+  const convertDateToInputFormat = (dateStr: string): string => {
+    const parts = dateStr.split(/[\/\-]/)
+    if (parts.length === 3) {
+      const [day, month, year] = parts
+      return `${year}-${month}-${day}`
+    }
+    return dateStr // fallback
+  }
+
+  const handleScanComplete = (data: {
+    imageUrl: string
+    aadhaarNumber?: string
+    dob?: string
+    gender?: string
+  }) => {
+    setFormData((prev) => ({
+      ...prev,
+      aadhaar_number: data.aadhaarNumber || prev.aadhaar_number,
+      date_of_birth: data.dob ? convertDateToInputFormat(data.dob) : prev.date_of_birth,
+      gender: data.gender || prev.gender,
+    }))
+    setShowAadhaarScanner(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -95,10 +136,33 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onCustome
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-[#D4AF37]/20">
           <h2 className="text-lg font-semibold text-[#D4AF37]">Edit Customer</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-[#D4AF37]/10 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-gray-400" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAadhaarScanner(true)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-lg text-[#D4AF37] hover:bg-[#D4AF37]/20 transition-colors text-sm"
+            >
+              <Camera className="w-4 h-4" />
+              Upload Aadhaar
+            </button>
+            <button onClick={onClose} className="p-1.5 hover:bg-[#D4AF37]/10 rounded-lg transition-colors">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
         </div>
+
+        {/* Aadhaar Scanner Modal */}
+        {showAadhaarScanner && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60">
+            <div className="w-full max-w-md">
+              <AadhaarScanner
+                customerId={customer.id}
+                onScanComplete={handleScanComplete}
+                onClose={() => setShowAadhaarScanner(false)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-3">

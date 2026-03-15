@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import AccountingClient from './AccountingClient'
 
-// Define types for the data structure
+// Define types (same as before)
 interface Transaction {
   id: string
   sequence_number: number
@@ -43,10 +43,36 @@ const idToTypeMap: Record<number, string> = {
   8: 'investment'
 }
 
-export default async function AccountingPage() {
+const PAGE_SIZE = 10 // Adjust as needed
+
+interface PageProps {
+  searchParams: Promise<{ page?: string }>
+}
+
+export default async function AccountingPage({ searchParams }: PageProps) {
+  const { page = '1' } = await searchParams
+  const currentPage = parseInt(page, 10)
+  const from = (currentPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
   const supabase = await createClient()
 
-  // Fetch ALL customers with their projects and transactions
+  // Get total count of active customers
+  const { count: totalCount, error: countError } = await supabase
+    .from('customers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+
+  if (countError) {
+    console.error('Error counting customers:', countError)
+    return <AccountingClient customers={[]} totalCount={0} currentPage={1} pageSize={PAGE_SIZE} />
+  }
+
+  if (!totalCount) {
+    return <AccountingClient customers={[]} totalCount={0} currentPage={1} pageSize={PAGE_SIZE} />
+  }
+
+  // Fetch paginated customers with their projects and transactions
   const { data: customers, error } = await supabase
     .from('customers')
     .select(`
@@ -71,16 +97,15 @@ export default async function AccountingPage() {
     `)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   if (error) {
     console.error('Error fetching customers:', error)
-    return <AccountingClient customers={[]} />
+    return <AccountingClient customers={[]} totalCount={totalCount} currentPage={currentPage} pageSize={PAGE_SIZE} />
   }
 
-  // Type assertion for the fetched data
   const typedCustomers = (customers || []) as Customer[]
 
-  // Transform the data to include transaction type names and proper fields
   const transformedCustomers = typedCustomers.map((customer: Customer) => ({
     ...customer,
     projects: customer.projects.map((project: Project) => ({
@@ -97,12 +122,18 @@ export default async function AccountingPage() {
           unit: transaction.unit || null,
           debit_amount: transaction.debit_amount || 0,
           credit_amount: transaction.credit_amount || 0,
-          // For backward compatibility
           amount: (transaction.debit_amount || 0) > 0 ? transaction.debit_amount : transaction.credit_amount,
         }
       })
     }))
   }))
 
-  return <AccountingClient customers={transformedCustomers} />
+  return (
+    <AccountingClient 
+      customers={transformedCustomers} 
+      totalCount={totalCount} 
+      currentPage={currentPage} 
+      pageSize={PAGE_SIZE}
+    />
+  )
 }
