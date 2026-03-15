@@ -88,31 +88,27 @@ export default function AadhaarScanner({ customerId, onScanComplete, onClose }: 
       if (!uploadData.path) throw new Error('No image path returned')
       const imagePath = uploadData.path
 
-      // 2. Run OCR on the original file
+      // 2. Run OCR on the original file with LOCAL files
       setIsOcrRunning(true)
-      
-      // Create a promise that will timeout
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('OCR timed out – please try a clearer image')), 20000)
-      })
 
       let text = ''
       try {
-        console.log('Starting Tesseract recognition...')
+        console.log('Starting Tesseract recognition with local files...')
         
-        // Run OCR without signal (since it's not supported in types)
-        const resultPromise = Tesseract.recognize(
+        // Run OCR with local files - no CDN, no timeout needed
+        const result = await Tesseract.recognize(
           file, 
           'eng', 
           {
             logger: (m) => {
               console.log('OCR progress:', m)
             },
+            // Use LOCAL files - no CDN dependencies!
+            workerPath: '/tesseract/worker.min.js',
+            corePath: '/tesseract/tesseract-core.wasm.js',
+            langPath: '/tesseract', // Looks for eng.traineddata.gz here
           }
         )
-        
-        // Race between OCR and timeout
-        const result = await Promise.race([resultPromise, timeoutPromise]) as Awaited<typeof resultPromise>
         
         text = result.data.text
         console.log('OCR completed, raw text:', text)
