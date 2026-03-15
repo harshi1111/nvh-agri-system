@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Lock, ArrowLeft } from 'lucide-react'
+import type { AuthChangeEvent } from '@supabase/supabase-js'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -51,8 +52,8 @@ export default function ResetPasswordPage() {
 
     handleRecoveryToken()
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    // Listen for auth state changes - FIXED: Added type for event parameter
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session) => {
       console.log('Auth event:', event, session)
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setIsValidLink(true)
