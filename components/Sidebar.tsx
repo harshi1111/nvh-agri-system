@@ -19,7 +19,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { useSidebar } from '@/contexts/SidebarContext' // import context hook
+import { useSidebar } from '@/contexts/SidebarContext'
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -64,54 +64,57 @@ export default function Sidebar() {
     <aside className={`bg-[#0A0F0A] border-r border-[#D4AF37]/20 flex flex-col h-screen fixed left-0 top-0 transition-all duration-300 ${
       collapsed ? 'w-20' : 'w-64'
     }`}>
-      {/* Logo & Toggle */}
+      {/* Header - Logo when expanded, just toggle button when collapsed */}
       <div className="p-4 border-b border-[#D4AF37]/20 flex items-center justify-between">
         {!collapsed ? (
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 relative">
-              <Image 
-                src="/images/logo-alone (1).png" 
-                alt="NVH Logo" 
-                fill
-                sizes="(max-width: 768px) 100vw, 33vw" 
-                className="object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement?.classList.add('fallback-logo');
-                }}
-              />
-              <div className="absolute inset-0 hidden fallback-logo:flex items-center justify-center bg-[#D4AF37] rounded-lg">
-                <span className="text-black font-bold text-xl">NVH</span>
+          // Expanded view - show logo and title
+          <>
+            <div className="flex items-center gap-3">
+              {/* Logo with simple yellow border highlight */}
+              <div className="w-10 h-10 relative">
+                {/* Yellow border frame */}
+                <div className="absolute inset-0 rounded-lg border-2 border-[#D4AF37]"></div>
+                <Image 
+                  src="/images/logo-alone (1).png" 
+                  alt="NVH Logo" 
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw" 
+                  className="object-contain relative z-10 p-1"
+                />
+              </div>
+              <div>
+                <h1 className="text-white font-bold text-lg">NVH</h1>
+                <p className="text-xs text-gray-400">Vetiver CRM</p>
               </div>
             </div>
-            <div>
-              <h1 className="text-white font-bold text-lg">NVH</h1>
-              <p className="text-xs text-gray-400">Vetiver CRM</p>
-            </div>
-          </div>
+            
+            {/* Toggle button - positioned normally in expanded view */}
+            <button
+              onClick={toggleSidebar}
+              className="relative group"
+              aria-label="Collapse sidebar"
+            >
+              <div className="absolute inset-0 rounded-full bg-[#D4AF37]/0 group-hover:bg-[#D4AF37]/20 transition-all duration-300 blur-md"></div>
+              <div className="relative w-8 h-8 rounded-full border border-[#D4AF37]/30 group-hover:border-[#D4AF37] bg-black/50 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                <ChevronLeft className="w-5 h-5 text-[#D4AF37]/70 group-hover:text-[#D4AF37] transition-all duration-300 group-hover:-translate-x-0.5" />
+              </div>
+            </button>
+          </>
         ) : (
-          <div className="w-10 h-10 relative mx-auto">
-            <Image 
-              src="/images/logo-alone.png" 
-              alt="NVH Logo" 
-              fill
-              className="object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement?.classList.add('fallback-logo');
-              }}
-            />
-            <div className="absolute inset-0 hidden fallback-logo:flex items-center justify-center bg-[#D4AF37] rounded-lg">
-              <span className="text-black font-bold text-xl">NVH</span>
-            </div>
+          // Collapsed view - only toggle button, no logo
+          <div className="w-full flex justify-center">
+            <button
+              onClick={toggleSidebar}
+              className="relative group"
+              aria-label="Expand sidebar"
+            >
+              <div className="absolute inset-0 rounded-full bg-[#D4AF37]/0 group-hover:bg-[#D4AF37]/20 transition-all duration-300 blur-md"></div>
+              <div className="relative w-8 h-8 rounded-full border border-[#D4AF37]/30 group-hover:border-[#D4AF37] bg-black/50 flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+                <ChevronRight className="w-5 h-5 text-[#D4AF37]/70 group-hover:text-[#D4AF37] transition-all duration-300 group-hover:translate-x-0.5" />
+              </div>
+            </button>
           </div>
         )}
-        <button
-          onClick={toggleSidebar}
-          className="text-gray-400 hover:text-[#D4AF37] transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-        </button>
       </div>
 
       {/* User Greeting – only show when expanded */}
@@ -125,7 +128,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href // exact match
+          const isActive = pathname === item.href
           return (
             <Link
               key={item.href}
