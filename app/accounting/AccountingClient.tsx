@@ -85,7 +85,9 @@ function SpinningNumber({ value, color, suffix = '' }: { value: number; color?: 
       step++
       setDisplayValue(Math.floor(Math.random() * value) || Math.floor(Math.random() * 100))
       if (step >= spinSteps) {
-        clearInterval(spinIntervalRef.current)
+        if (spinIntervalRef.current) {
+          clearInterval(spinIntervalRef.current)
+        }
         setDisplayValue(value)
         setSpinning(false)
       }

@@ -85,7 +85,7 @@ export default function Sidebar() {
               </div>
             </div>
             <div>
-              <h1 className="text-white font-bold text-lg">nvhFlow</h1>
+              <h1 className="text-white font-bold text-lg">NVH</h1>
               <p className="text-xs text-gray-400">Vetiver CRM</p>
             </div>
           </div>
