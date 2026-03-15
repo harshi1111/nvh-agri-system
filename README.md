@@ -179,6 +179,8 @@ Authentication: Supabase Auth (JWT based)
 <br />
 
 ---
+## 📸 Screenshots
+<div align="center"> <table> <tr> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-dashboard.png" width="100%" /></td> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-customers.png" width="100%" /></td> </tr> <tr> <td align="center"><i>Dashboard — at a glance</i></td> <td align="center"><i>Customers — all your farmers</i></td> </tr> <tr> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-accounting.png" width="100%" /></td> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-project.png" width="100%" /></td> </tr> <tr> <td align="center"><i>Accounting — money matters</i></td> <td align="center"><i>Project View — field details</i></td> </tr> </table> </div>
 
 ## 🔒 **Security**
 
