@@ -23,7 +23,6 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -69,7 +68,7 @@ interface AccountingClientProps {
   pageSize: number
 }
 
-// Spinning number component (same)
+// Spinning number component
 function SpinningNumber({ value, color, suffix = '' }: { value: number; color?: string; suffix?: string }) {
   const [displayValue, setDisplayValue] = useState(0)
   const [spinning, setSpinning] = useState(true)
@@ -105,7 +104,7 @@ function SpinningNumber({ value, color, suffix = '' }: { value: number; color?: 
   )
 }
 
-// calculateLiquidity (same)
+// calculateLiquidity
 const calculateLiquidity = (customers: Customer[]) => {
   let totalInflow = 0
   let totalOutflow = 0
@@ -214,7 +213,6 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
 
   // Calculate REAL monthly data (uses paginated customers)
   const monthlyData = useMemo(() => {
-    const months = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar']
     const result: { month: string; profit: number; isProfit: boolean; actualValue: number }[] = []
     
     const today = new Date()
@@ -367,7 +365,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
 
   return (
     <div className="min-h-screen bg-[#0A120A] relative overflow-hidden">
-      {/* Background (unchanged) */}
+      {/* Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-amber-950/30 animate-gradient-xy"></div>
         <div className="absolute bottom-1/3 left-0 right-0 h-32 bg-gradient-to-t from-[#1A2A1A] to-transparent"></div>
@@ -667,7 +665,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
                 }}
                 onBlur={() => setSelectedFilter(null)}
                 onFocus={() => setSelectedFilter('from')}
-                className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('from', dateRange.from)} text-white focus:ring-4 focus:ring-cyan-500/30`}
+                className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('from', Boolean(dateRange.from))} text-white focus:ring-4 focus:ring-cyan-500/30`}
               />
             </div>
             
@@ -683,7 +681,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
                 }}
                 onBlur={() => setSelectedFilter(null)}
                 onFocus={() => setSelectedFilter('to')}
-                className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('to', dateRange.to)} text-white focus:ring-4 focus:ring-purple-500/30`}
+                className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('to', Boolean(dateRange.to))} text-white focus:ring-4 focus:ring-purple-500/30`}
               />
             </div>
           </div>
