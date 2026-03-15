@@ -6,6 +6,7 @@ export type Project = {
   country: string
   state: string | null
   district: string | null
+  city: string | null
   village: string | null
   status: 'active' | 'completed' | 'on hold'
   created_at: string

@@ -23,8 +23,8 @@ interface DashboardClientProps {
 function SpinningNumber({ value, color }: { value: number; color?: string }) {
   const [displayValue, setDisplayValue] = useState(0)
   const [spinning, setSpinning] = useState(true)
-  const spinIntervalRef = useRef<NodeJS.Timeout>()
-
+  const spinIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
   useEffect(() => {
     setSpinning(true)
     const spinDuration = 1000
@@ -36,14 +36,22 @@ function SpinningNumber({ value, color }: { value: number; color?: string }) {
       setDisplayValue(Math.floor(Math.random() * 100))
       
       if (step >= spinSteps) {
-        clearInterval(spinIntervalRef.current)
+        // FIXED: Add null check before clearing interval
+        if (spinIntervalRef.current) {
+          clearInterval(spinIntervalRef.current)
+          spinIntervalRef.current = null
+        }
         setDisplayValue(value)
         setSpinning(false)
       }
     }, spinDuration / spinSteps)
 
     return () => {
-      if (spinIntervalRef.current) clearInterval(spinIntervalRef.current)
+      // FIXED: Add null check in cleanup
+      if (spinIntervalRef.current) {
+        clearInterval(spinIntervalRef.current)
+        spinIntervalRef.current = null
+      }
     }
   }, [value])
 

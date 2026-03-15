@@ -19,6 +19,38 @@ interface PageProps {
   searchParams: Promise<{ page?: string }>
 }
 
+// Define types for the database response
+interface Transaction {
+  id: string
+  sequence_number: number
+  date: string
+  transaction_type_id: number
+  quantity: number | null
+  unit: string | null
+  debit_amount: number
+  credit_amount: number
+  description: string | null
+}
+
+interface Project {
+  id: string
+  name: string
+  status: string
+  acres: number | null
+  transactions: Transaction[]
+}
+
+interface Customer {
+  id: string
+  full_name: string
+  contact_number: string
+  email: string | null
+  address: string | null
+  is_active: boolean
+  created_at: string
+  projects: Project[]
+}
+
 export default async function ReportsPage({ searchParams }: PageProps) {
   const { page = '1' } = await searchParams
   const currentPage = parseInt(page, 10)
@@ -69,12 +101,12 @@ export default async function ReportsPage({ searchParams }: PageProps) {
     return <ReportsClient customers={[]} totalCount={0} currentPage={1} pageSize={PAGE_SIZE} />
   }
 
-  // Transform data
-  const transformedCustomers = customers.map(customer => ({
+  // Transform data - FIXED: Added type for project parameter
+  const transformedCustomers = customers.map((customer: Customer) => ({
     ...customer,
-    projects: customer.projects.map(project => ({
+    projects: customer.projects.map((project: Project) => ({  // Added type here
       ...project,
-      transactions: project.transactions.map(transaction => {
+      transactions: project.transactions.map((transaction: Transaction) => {
         const type = idToTypeMap[transaction.transaction_type_id] || 'unknown'
         return {
           id: transaction.id,

@@ -18,9 +18,6 @@ interface AadhaarScannerProps {
   onClose: () => void
 }
 
-// Optional preprocessing – disabled for now to test raw OCR
-// async function preprocessImage(file: File): Promise<File> { ... }
-
 export default function AadhaarScanner({ customerId, onScanComplete, onClose }: AadhaarScannerProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [isOcrRunning, setIsOcrRunning] = useState(false)
@@ -30,7 +27,7 @@ export default function AadhaarScanner({ customerId, onScanComplete, onClose }: 
   const [extractedFields, setExtractedFields] = useState<string[]>([])
 
   const parseAadhaarText = (text: string) => {
-    console.log('Raw OCR text for parsing:', text) // <-- DEBUG
+    console.log('Raw OCR text for parsing:', text)
 
     const result: { aadhaarNumber?: string; dob?: string; gender?: string } = {}
 
@@ -72,7 +69,7 @@ export default function AadhaarScanner({ customerId, onScanComplete, onClose }: 
     setExtractedFields([])
 
     try {
-      // 1. Upload to Supabase – now expects `path` in response
+      // 1. Upload to Supabase
       const uploadFormData = new FormData()
       uploadFormData.append('file', file)
       uploadFormData.append('customerId', customerId)
@@ -89,38 +86,39 @@ export default function AadhaarScanner({ customerId, onScanComplete, onClose }: 
 
       const uploadData = await uploadRes.json()
       if (!uploadData.path) throw new Error('No image path returned')
-      // Keep the field name as `imageUrl` for backward compatibility,
-      // but the value is now a storage path, not a public URL.
       const imagePath = uploadData.path
 
-      // 2. Run OCR on the original file (no preprocessing)
+      // 2. Run OCR on the original file
       setIsOcrRunning(true)
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 20000) // 20 sec timeout
+      
+      // Create a promise that will timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('OCR timed out – please try a clearer image')), 20000)
+      })
 
       let text = ''
       try {
         console.log('Starting Tesseract recognition...')
-        const result = await Tesseract.recognize(file, 'eng', {
-          logger: (m) => {
-            console.log('OCR progress:', m)
-          },
-          // If you downloaded worker locally, use these; otherwise remove them.
-          // workerPath: '/tesseract/worker.min.js',
-          // corePath: '/tesseract/tesseract-core.wasm.js',
-        }, {
-          signal: controller.signal,
-        })
+        
+        // Run OCR without signal (since it's not supported in types)
+        const resultPromise = Tesseract.recognize(
+          file, 
+          'eng', 
+          {
+            logger: (m) => {
+              console.log('OCR progress:', m)
+            },
+          }
+        )
+        
+        // Race between OCR and timeout
+        const result = await Promise.race([resultPromise, timeoutPromise]) as Awaited<typeof resultPromise>
+        
         text = result.data.text
         console.log('OCR completed, raw text:', text)
       } catch (ocrErr: any) {
         console.error('OCR error:', ocrErr)
-        if (ocrErr.name === 'AbortError') {
-          throw new Error('OCR timed out – please try a clearer image')
-        }
-        throw new Error(`OCR failed: ${ocrErr.message || 'Unknown error'}`)
-      } finally {
-        clearTimeout(timeoutId)
+        throw ocrErr
       }
 
       // 3. Parse the text
@@ -139,7 +137,7 @@ export default function AadhaarScanner({ customerId, onScanComplete, onClose }: 
 
       setSuccess(true)
       onScanComplete({
-        imageUrl: imagePath,  // still called imageUrl for compatibility
+        imageUrl: imagePath,
         aadhaarNumber: extracted.aadhaarNumber,
         dob: extracted.dob,
         gender: extracted.gender,

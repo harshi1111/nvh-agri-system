@@ -31,7 +31,35 @@ import { Label } from '@/components/ui/label'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-// ... (interfaces remain same)
+// Add missing interfaces
+interface Transaction {
+  id: string
+  date: string
+  type: string
+  description: string
+  quantity: number | null
+  unit: string | null
+  debit_amount: number
+  credit_amount: number
+}
+
+interface Project {
+  id: string
+  name: string
+  status: string
+  acres: number | null
+  transactions: Transaction[]
+}
+
+interface Customer {
+  id: string
+  full_name: string
+  contact_number: string
+  email: string | null
+  address: string | null
+  is_active: boolean
+  projects: Project[]
+}
 
 interface ReportsClientProps {
   customers: Customer[]

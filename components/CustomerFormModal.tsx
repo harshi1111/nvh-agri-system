@@ -71,18 +71,23 @@ export default function CustomerFormModal({ isOpen, onClose, onCustomerAdded }: 
     return dateStr
   }
 
+  // FIXED: Changed imagePath to imageUrl to match AadhaarScannerProps
   const handleScanComplete = (data: {
-    imagePath: string
+    imageUrl: string  // Changed from imagePath to imageUrl
     aadhaarNumber?: string
     dob?: string
     gender?: string
+    name?: string
+    address?: string
   }) => {
     setFormData((prev) => ({
       ...prev,
-      aadhaar_images: [data.imagePath],
+      aadhaar_images: [data.imageUrl],  // Changed from imagePath to imageUrl
       aadhaar_number: data.aadhaarNumber || prev.aadhaar_number,
       date_of_birth: data.dob ? convertDateToInputFormat(data.dob) : prev.date_of_birth,
       gender: data.gender || prev.gender,
+      full_name: data.name || prev.full_name,  // Optionally set name if provided
+      address: data.address || prev.address,    // Optionally set address if provided
     }))
     setShowAadhaarScanner(false)
   }

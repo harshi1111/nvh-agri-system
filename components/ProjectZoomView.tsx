@@ -63,7 +63,7 @@ export default function ProjectZoomView({
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     date: new Date().toISOString().split('T')[0],
     type: 'labour',
-    amount: undefined, // ← changed from 0 to undefined
+    amount: undefined,
     count: null,
     description: ''
   })
@@ -119,7 +119,18 @@ export default function ProjectZoomView({
     
     setIsUpdatingProject(true)
     try {
-      const result = await updateProject(project.id, editedProject)
+      // FIXED: Only include fields that exist in the Project type
+      const projectData = {
+        name: editedProject.name,
+        acres: editedProject.acres,
+        country: editedProject.country,
+        state: editedProject.state || '',  // Convert null/undefined to empty string
+        district: editedProject.district || '',  // Convert null/undefined to empty string
+        village: editedProject.village || '',  // Convert null/undefined to empty string
+        status: editedProject.status,
+      }
+      
+      const result = await updateProject(project.id, projectData)
       if (result.error) {
         console.error('Failed to update project:', result.error)
         return
@@ -415,7 +426,11 @@ export default function ProjectZoomView({
                   <label className="block text-xs text-gray-400 mb-1">Status</label>
                   <select
                     value={editedProject.status || 'active'}
-                    onChange={(e) => setEditedProject({ ...editedProject, status: e.target.value })}
+                    onChange={(e) => {
+                      // FIXED: Cast the value to the expected type
+                      const status = e.target.value as "active" | "completed" | "on hold"
+                      setEditedProject({ ...editedProject, status })
+                    }}
                     className="w-full bg-black/50 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-white text-sm"
                   >
                     <option value="active">Active</option>
@@ -676,7 +691,7 @@ export default function ProjectZoomView({
                         onChange={(e) => {
                           const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
                           if (editingTransaction) {
-                            setEditingTransaction({ ...editingTransaction, amount: val })
+                            setEditingTransaction({ ...editingTransaction, amount: val === undefined ? 0 : val })
                           } else {
                             setNewTransaction({ ...newTransaction, amount: val })
                           }

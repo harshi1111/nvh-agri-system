@@ -85,15 +85,16 @@ export default function AddProjectModal({
       const selectedCountry = countries.find(c => c.isoCode === formData.country)
       const selectedState = states.find(s => s.isoCode === formData.state)
       
+      // FIXED: Convert null to empty string for optional fields
       const projectData = {
         customer_id: customerId,
         name: formData.name,
         acres: parseFloat(formData.acres) || null,
         country: selectedCountry?.name || formData.country,
         state: selectedState?.name || formData.state,
-        district: formData.district || null,
-        city: formData.city || null,
-        village: formData.village || null,
+        district: formData.district || '',  // Changed from null to empty string
+        city: formData.city || '',           // Changed from null to empty string
+        village: formData.village || '',      // Changed from null to empty string
         status: formData.status
       }
 
