@@ -592,7 +592,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
                   }}
                   onBlur={() => setSelectedFilter(null)}
                   onFocus={() => setSelectedFilter('search')}
-                  className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('search', selectedFilter === 'search' || searchTerm)} text-white focus:ring-4 focus:ring-emerald-500/30`}
+                  className={`h-10 text-sm bg-black/60 backdrop-blur-sm border-2 transition-all duration-300 ${getFilterColor('search', selectedFilter === 'search' || Boolean(searchTerm))} text-white focus:ring-4 focus:ring-emerald-500/30`}
                 />
                 {searchTerm && (
                   <div className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-xs text-white animate-bounce">
