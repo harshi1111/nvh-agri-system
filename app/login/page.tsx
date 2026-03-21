@@ -21,6 +21,21 @@ export default function LoginPage() {
   const [birdPath, setBirdPath] = useState({ x: 0, y: 0, rotation: 0 })
   const [showSecretBird, setShowSecretBird] = useState(false)
   const [resetMode, setResetMode] = useState(false)
+  const [particles, setParticles] = useState<Array<{ left: string; top: string; animationDelay: string; animationDuration: number }>>([])
+
+  // Generate particles only on client
+  useEffect(() => {
+    const particlesArray = []
+    for (let i = 0; i < 3; i++) {
+      particlesArray.push({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 10}s`,
+        animationDuration: 8 + Math.random() * 4
+      })
+    }
+    setParticles(particlesArray)
+  }, [])
 
   // Secret bird appears briefly when hovering over field
   useEffect(() => {
@@ -265,20 +280,23 @@ export default function LoginPage() {
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E")`,
           }}></div>
           
-          {/* Floating particles */}
-          <div className="absolute inset-0 pointer-events-none">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-0.5 h-0.5 bg-[#D4AF37]/20 rounded-full"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animation: `floatParticle ${8 + i * 2}s linear infinite`,
-                }}
-              />
-            ))}
-          </div>
+          {/* Floating particles - now rendered only after client side generation */}
+          {particles.length > 0 && (
+            <div className="absolute inset-0 pointer-events-none">
+              {particles.map((particle, i) => (
+                <div
+                  key={i}
+                  className="absolute w-0.5 h-0.5 bg-[#D4AF37]/20 rounded-full"
+                  style={{
+                    left: particle.left,
+                    top: particle.top,
+                    animation: `floatParticle ${particle.animationDuration}s linear infinite`,
+                    animationDelay: particle.animationDelay,
+                  }}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Header */}
           <div className="text-center mb-4 relative">

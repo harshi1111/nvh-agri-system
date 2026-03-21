@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createProject } from '@/lib/actions/projects'
-import { X, MapPin, Globe, Mountain, Building2, Trees } from 'lucide-react'
+import { createPlot } from '@/lib/actions/plots'  
+import { X, MapPin, Globe, Mountain, Building2, Trees, Hash, Ruler, Loader2 } from 'lucide-react'
 import { Project } from '@/types/project'
 import { Country, State, City } from 'country-state-city'
 
@@ -11,7 +12,7 @@ interface AddProjectModalProps {
   onClose: () => void
   customerId: string
   onProjectAdded?: (project: Project) => void
-  onProjectView?: (project: Project) => void  // Add this prop for viewing
+  onProjectView?: (project: Project) => void
 }
 
 export default function AddProjectModal({ 
@@ -19,17 +20,24 @@ export default function AddProjectModal({
   onClose, 
   customerId,
   onProjectAdded,
-  onProjectView  // New prop
+  onProjectView
 }: AddProjectModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [countries, setCountries] = useState<any[]>([])
   const [states, setStates] = useState<any[]>([])
   const [cities, setCities] = useState<any[]>([])
   const [animateIn, setAnimateIn] = useState(false)
+  const [isFetchingPincode, setIsFetchingPincode] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
-    name: '',
-    acres: '',
+    farmName: '',
+    type: 'plot' as 'plot' | 'acre',
+    plotNumber: '',
+    cent: '',
+    acreNumber: '',
+    acre: '',
+    pincode: '',
     country: 'IN',
     state: '',
     district: '',
@@ -38,7 +46,6 @@ export default function AddProjectModal({
     status: 'active'
   })
 
-  // Animation on open
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => setAnimateIn(true), 50)
@@ -47,13 +54,11 @@ export default function AddProjectModal({
     }
   }, [isOpen])
 
-  // Load all countries on mount
   useEffect(() => {
     const allCountries = Country.getAllCountries()
     setCountries(allCountries)
   }, [])
 
-  // Load states when country changes
   useEffect(() => {
     if (formData.country) {
       const countryStates = State.getStatesOfCountry(formData.country)
@@ -66,7 +71,6 @@ export default function AddProjectModal({
     }
   }, [formData.country])
 
-  // Load cities when state changes
   useEffect(() => {
     if (formData.country && formData.state) {
       const stateCities = City.getCitiesOfState(formData.country, formData.state)
@@ -77,52 +81,143 @@ export default function AddProjectModal({
     }
   }, [formData.state, formData.country])
 
+  const fetchPincodeDetails = async (pincode: string) => {
+    if (pincode.length !== 6) return
+    setIsFetchingPincode(true)
+    setError(null)
+    try {
+      const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`)
+      const data = await response.json()
+      if (data[0]?.Status === 'Success') {
+        const postOffice = data[0].PostOffice[0]
+        const district = postOffice.District
+        const state = postOffice.State
+        const country = 'IN'
+
+        const stateObj = State.getStatesOfCountry('IN').find(s => s.name === state)
+        const stateCode = stateObj?.isoCode || ''
+
+        setFormData(prev => ({
+          ...prev,
+          country: 'IN',
+          state: stateCode,
+          district: district,
+          city: postOffice.Name || '',
+          village: postOffice.Name || ''
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching pincode:', error)
+      setError('Could not fetch pincode details')
+    } finally {
+      setIsFetchingPincode(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
     try {
       const selectedCountry = countries.find(c => c.isoCode === formData.country)
       const selectedState = states.find(s => s.isoCode === formData.state)
       
-      // FIXED: Convert null to empty string for optional fields
+      const stateName = selectedState?.name || ''
+      const cityName = formData.city || ''
+      
+      // Debug log
+      console.log('Form data before submit:', {
+        farmName: formData.farmName,
+        stateName,
+        cityName,
+        selectedState: selectedState,
+        formDataCity: formData.city
+      })
+      
+      if (!formData.farmName) {
+        setError('Farm name is required')
+        setIsLoading(false)
+        return
+      }
+      
+      if (!stateName) {
+        setError('Please select a state')
+        setIsLoading(false)
+        return
+      }
+      
+      if (!cityName) {
+        setError('Please select a city')
+        setIsLoading(false)
+        return
+      }
+      
+      // 1. Create project
       const projectData = {
         customer_id: customerId,
-        name: formData.name,
-        acres: parseFloat(formData.acres) || null,
-        country: selectedCountry?.name || formData.country,
-        state: selectedState?.name || formData.state,
-        district: formData.district || '',  // Changed from null to empty string
-        city: formData.city || '',           // Changed from null to empty string
-        village: formData.village || '',      // Changed from null to empty string
-        status: formData.status
+        name: formData.farmName,
+        type: formData.type,
+        acres: null,
+        country: selectedCountry?.name || 'India',
+        state: stateName,
+        district: formData.district || '',
+        city: cityName,
+        village: formData.village || '',
+        status: 'active'
       }
 
-      const result = await createProject(projectData)
+      console.log('Submitting project data:', projectData)
+
+      const projectResult = await createProject(projectData)
       
-      if (result.error) {
-        console.error('Error creating project:', result.error)
+      if (projectResult.error) {
+        setError(projectResult.error)
+        console.error('Error creating project:', projectResult.error)
+        setIsLoading(false)
         return
       }
 
-      if (result.project) {
-        // First notify that project was added (to refresh the list)
-        if (onProjectAdded) {
-          onProjectAdded(result.project)
-        }
-        
-        // Close this modal
-        handleClose()
-        
-        // Then open the project view modal with a slight delay for better UX
-        setTimeout(() => {
-          if (onProjectView) {
-            onProjectView(result.project)
-          }
-        }, 300)
+      const project = projectResult.project!
+
+      // 2. Create first plot based on type
+      if (formData.type === 'plot') {
+        await createPlot({
+          project_id: project.id,
+          type: 'plot',
+          plot_number: formData.plotNumber || null,
+          cent: formData.cent ? parseFloat(formData.cent) : null,
+          acre_number: null,
+          acre: null
+        })
+      } else {
+        await createPlot({
+          project_id: project.id,
+          type: 'acre',
+          plot_number: null,
+          cent: null,
+          acre_number: formData.acreNumber || null,
+          acre: formData.acre ? parseFloat(formData.acre) : null
+        })
       }
+
+      // Notify parent
+      if (onProjectAdded) {
+        onProjectAdded(project)
+      }
+
+      // Close modal
+      handleClose()
+
+      // Open project view
+      setTimeout(() => {
+        if (onProjectView) {
+          onProjectView(project)
+        }
+      }, 300)
     } catch (error) {
       console.error('Error:', error)
+      setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }
@@ -138,8 +233,13 @@ export default function AddProjectModal({
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      acres: '',
+      farmName: '',
+      type: 'plot',
+      plotNumber: '',
+      cent: '',
+      acreNumber: '',
+      acre: '',
+      pincode: '',
       country: 'IN',
       state: '',
       district: '',
@@ -148,6 +248,7 @@ export default function AddProjectModal({
       status: 'active'
     })
     setCities([])
+    setError(null)
   }
 
   if (!isOpen) return null
@@ -163,13 +264,10 @@ export default function AddProjectModal({
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Animated gradient background */}
         <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D4AF37] to-[#B88D2B] rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300"></div>
         
-        {/* Modal content */}
         <div className="relative bg-gradient-to-br from-[#0F1A0F] to-[#1E2E1E] border border-[#D4AF37]/20 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-sm">
           
-          {/* Header with subtle pattern */}
           <div className="relative px-5 py-4 border-b border-[#D4AF37]/20 bg-[#0A150A]">
             <div className="absolute inset-0 opacity-5" style={{
               backgroundImage: `radial-gradient(circle at 2px 2px, #D4AF37 1px, transparent 0)`,
@@ -179,7 +277,7 @@ export default function AddProjectModal({
             <div className="flex items-center justify-between relative">
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-[#D4AF37]" />
-                <h2 className="text-xl font-bold text-white">New Project</h2>
+                <h2 className="text-xl font-bold text-white">Add New Farm</h2>
               </div>
               <button 
                 onClick={handleClose}
@@ -190,93 +288,151 @@ export default function AddProjectModal({
             </div>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
-            {/* Project Name & Acres row */}
+            {error && (
+              <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-xs text-red-400">{error}</p>
+              </div>
+            )}
+
+            {/* Farm Name & Type row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-1">
                 <label className="block text-xs font-medium text-gray-300 mb-1">
-                  Project Name <span className="text-[#D4AF37]">*</span>
+                  Farm Name <span className="text-[#D4AF37]">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.farmName}
+                  onChange={(e) => setFormData({ ...formData, farmName: e.target.value })}
                   className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
-                  placeholder="e.g., Spring Crop"
+                  placeholder="e.g., North Field"
                 />
               </div>
 
               <div className="col-span-1">
                 <label className="block text-xs font-medium text-gray-300 mb-1">
-                  Acres <span className="text-[#D4AF37]">*</span>
+                  Type <span className="text-[#D4AF37]">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={formData.acres}
-                  onChange={(e) => setFormData({ ...formData, acres: e.target.value })}
-                  className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
-                  placeholder="0.00"
-                />
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'plot' | 'acre' })}
+                  className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="plot">Plot</option>
+                  <option value="acre">Acre</option>
+                </select>
               </div>
             </div>
 
-            {/* Status & Country row */}
+            {/* Conditional fields based on type */}
+            {formData.type === 'plot' ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    Plot No <span className="text-[#D4AF37]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.plotNumber}
+                    onChange={(e) => setFormData({ ...formData, plotNumber: e.target.value })}
+                    className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
+                    placeholder="e.g., 101"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    Cent
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.cent}
+                    onChange={(e) => setFormData({ ...formData, cent: e.target.value })}
+                    className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    Acre No <span className="text-[#D4AF37]">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.acreNumber}
+                    onChange={(e) => setFormData({ ...formData, acreNumber: e.target.value })}
+                    className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
+                    placeholder="e.g., A-1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    Acre
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.acre}
+                    onChange={(e) => setFormData({ ...formData, acre: e.target.value })}
+                    className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Pincode */}
+            <div>
+              <label className="block text-xs font-medium text-gray-300 mb-1">
+                Pincode
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={formData.pincode}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '')
+                    setFormData({ ...formData, pincode: val })
+                    if (val.length === 6) fetchPincodeDetails(val)
+                  }}
+                  className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
+                  placeholder="Enter 6-digit pincode"
+                />
+                {isFetchingPincode && (
+                  <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37] animate-spin" />
+                )}
+              </div>
+            </div>
+
+            {/* Location fields */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-300 mb-1">
-                  Status <span className="text-[#D4AF37]">*</span>
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all appearance-none cursor-pointer"
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%23D4AF37'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                    backgroundPosition: 'right 0.5rem center',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundSize: '1.2em'
-                  }}
-                >
-                  <option value="active" className="bg-[#0F1A0F]">Active</option>
-                  <option value="completed" className="bg-[#0F1A0F]">Completed</option>
-                  <option value="planned" className="bg-[#0F1A0F]">Planned</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">
-                  Country <span className="text-[#D4AF37]">*</span>
+                  Country
                 </label>
                 <div className="relative">
                   <Globe className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#D4AF37]/70" />
                   <select
-                    required
                     value={formData.country}
                     onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                     className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg pl-8 pr-6 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all appearance-none cursor-pointer"
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%23D4AF37'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundPosition: 'right 0.5rem center',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundSize: '1.2em'
-                    }}
                   >
-                    {countries.map(country => (
-                      <option key={country.isoCode} value={country.isoCode} className="bg-[#0F1A0F]">
-                        {country.name}
+                    {countries.map(c => (
+                      <option key={c.isoCode} value={c.isoCode}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
-            </div>
 
-            {/* State & District row */}
-            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-300 mb-1">
                   State <span className="text-[#D4AF37]">*</span>
@@ -289,23 +445,17 @@ export default function AddProjectModal({
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                     disabled={!formData.country}
                     className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg pl-8 pr-6 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%23D4AF37'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundPosition: 'right 0.5rem center',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundSize: '1.2em'
-                    }}
                   >
-                    <option value="" className="bg-[#0F1A0F]">Select State</option>
-                    {states.map(state => (
-                      <option key={state.isoCode} value={state.isoCode} className="bg-[#0F1A0F]">
-                        {state.name}
-                      </option>
+                    <option value="">Select State</option>
+                    {states.map(s => (
+                      <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-300 mb-1">
                   District
@@ -318,52 +468,44 @@ export default function AddProjectModal({
                   placeholder="Optional"
                 />
               </div>
-            </div>
 
-            {/* City & Village row */}
-            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-300 mb-1">
-                  City/Town
+                  City/Town <span className="text-[#D4AF37]">*</span>
                 </label>
                 <div className="relative">
                   <Building2 className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#D4AF37]/70" />
                   <select
+                    required
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     disabled={!formData.state}
                     className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg pl-8 pr-6 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none cursor-pointer"
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20' stroke='%23D4AF37'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                      backgroundPosition: 'right 0.5rem center',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundSize: '1.2em'
-                    }}
                   >
-                    <option value="" className="bg-[#0F1A0F]">Optional</option>
+                    <option value="">Select City</option>
                     {cities.map(city => (
-                      <option key={`${city.name}-${city.countryCode}-${city.stateCode}`} value={city.name} className="bg-[#0F1A0F]">
+                      <option key={`${city.name}-${city.countryCode}-${city.stateCode}`} value={city.name}>
                         {city.name}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">
-                  Village
-                </label>
-                <div className="relative">
-                  <Trees className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#D4AF37]/70" />
-                  <input
-                    type="text"
-                    value={formData.village}
-                    onChange={(e) => setFormData({ ...formData, village: e.target.value })}
-                    className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
-                    placeholder="Optional"
-                  />
-                </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-300 mb-1">
+                Village
+              </label>
+              <div className="relative">
+                <Trees className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#D4AF37]/70" />
+                <input
+                  type="text"
+                  value={formData.village}
+                  onChange={(e) => setFormData({ ...formData, village: e.target.value })}
+                  className="w-full bg-black/40 border border-[#D4AF37]/20 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:bg-black/60 transition-all"
+                  placeholder="Optional"
+                />
               </div>
             </div>
 
@@ -389,7 +531,7 @@ export default function AddProjectModal({
                 ) : (
                   <>
                     <MapPin className="w-3 h-3" />
-                    <span>Create Project</span>
+                    <span>Create Farm</span>
                   </>
                 )}
               </button>

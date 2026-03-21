@@ -21,7 +21,8 @@ import {
   ArrowDownRight,
   Droplets,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -104,46 +105,71 @@ function SpinningNumber({ value, color, suffix = '' }: { value: number; color?: 
   )
 }
 
-// calculateLiquidity
-const calculateLiquidity = (customers: Customer[]) => {
-  let totalInflow = 0
-  let totalOutflow = 0
-  let transactionCount = 0
-  
-  const now = new Date()
-  const threeMonthsAgo = new Date()
-  threeMonthsAgo.setMonth(now.getMonth() - 3)
-  
-  customers.forEach(customer => {
-    customer.projects?.forEach(project => {
-      project.transactions?.forEach(t => {
-        const txDate = new Date(t.date)
-        if (txDate >= threeMonthsAgo) {
-          totalInflow += t.credit_amount || 0
-          totalOutflow += t.debit_amount || 0
-          transactionCount++
-        }
-      })
-    })
-  })
-  
-  const velocity = transactionCount > 0 ? (totalInflow + totalOutflow) / transactionCount : 0
-  const ratio = totalOutflow > 0 ? (totalInflow / totalOutflow) * 100 : 0
-  
-  return {
-    velocity: Math.round(velocity),
-    ratio: Math.round(ratio),
-    isHealthy: ratio > 110
-  }
+// Loading Skeleton Component
+function AccountingSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#0A120A] p-4 sm:p-6">
+      <div className="max-w-6xl mx-auto space-y-4">
+        {/* Header Skeleton */}
+        <div className="bg-black/40 border border-[#D4AF37]/20 rounded-2xl p-4 animate-pulse">
+          <div className="h-8 w-48 bg-gray-700 rounded"></div>
+          <div className="h-4 w-32 bg-gray-700 rounded mt-2"></div>
+        </div>
+        
+        {/* Chart Skeleton */}
+        <div className="bg-black/40 border border-[#5F8B4B]/30 rounded-xl p-4 animate-pulse">
+          <div className="h-32 flex items-end gap-2">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex-1 bg-gray-700 rounded-t-lg" style={{ height: `${40 + Math.random() * 40}px` }}></div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Filters Skeleton */}
+        <div className="bg-black/40 border border-[#5F8B4B]/30 rounded-xl p-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i}>
+                <div className="h-4 w-16 bg-gray-700 rounded mb-2"></div>
+                <div className="h-10 bg-gray-700 rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Customers List Skeleton */}
+        <div className="bg-black/40 border border-[#5F8B4B]/30 rounded-xl p-5">
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="border border-[#5F8B4B]/20 rounded-xl p-4 animate-pulse">
+                <div className="flex justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-700 rounded-full"></div>
+                    <div>
+                      <div className="h-5 w-32 bg-gray-700 rounded"></div>
+                      <div className="h-3 w-24 bg-gray-700 rounded mt-1"></div>
+                    </div>
+                  </div>
+                  <div className="w-20 h-8 bg-gray-700 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function AccountingClient({ customers, totalCount, currentPage, pageSize }: AccountingClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [isLoading, setIsLoading] = useState(false)
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [birdVisible, setBirdVisible] = useState(true)
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null)
   const [glowIntensity, setGlowIntensity] = useState(0)
+  const [particles, setParticles] = useState<Array<{ left: string; top: string; delay: string; duration: number }>>([])
   
   // Filter states
   const [selectedCustomer, setSelectedCustomer] = useState<string>('all')
@@ -154,6 +180,20 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
     to: ''
   })
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Generate particles only on client
+  useEffect(() => {
+    const positions = []
+    for (let i = 0; i < 20; i++) {
+      positions.push({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 10}s`,
+        duration: 15 + Math.random() * 10
+      })
+    }
+    setParticles(positions)
+  }, [])
 
   // Reset expanded when page changes
   useEffect(() => {
@@ -172,6 +212,14 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
   useEffect(() => {
     setTimeout(() => setBirdVisible(false), 8000)
   }, [])
+
+  // Helper function to check if date is within range
+  const isDateInRange = (dateString: string) => {
+    const transactionDate = new Date(dateString)
+    if (dateRange.from && new Date(dateRange.from) > transactionDate) return false
+    if (dateRange.to && new Date(dateRange.to) < transactionDate) return false
+    return true
+  }
 
   // Get only active customers
   const activeCustomers = useMemo(() => {
@@ -201,17 +249,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
     return customer?.projects || []
   }, [activeCustomers, selectedCustomer])
 
-  // Filter transactions by date range
-  const filterTransactionsByDate = (transactions: Transaction[]) => {
-    return transactions.filter(t => {
-      const transactionDate = new Date(t.date)
-      if (dateRange.from && new Date(dateRange.from) > transactionDate) return false
-      if (dateRange.to && new Date(dateRange.to) < transactionDate) return false
-      return true
-    })
-  }
-
-  // Calculate REAL monthly data (uses paginated customers)
+  // Calculate monthly data with date range filter
   const monthlyData = useMemo(() => {
     const result: { month: string; profit: number; isProfit: boolean; actualValue: number }[] = []
     
@@ -229,7 +267,8 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
           project.transactions?.forEach(t => {
             const transactionDate = new Date(t.date)
             if (transactionDate.getMonth() === date.getMonth() && 
-                transactionDate.getFullYear() === date.getFullYear()) {
+                transactionDate.getFullYear() === date.getFullYear() &&
+                isDateInRange(t.date)) {
               totalCredit += t.credit_amount || 0
               totalDebit += t.debit_amount || 0
             }
@@ -246,9 +285,9 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
       })
     }
     return result
-  }, [customers])
+  }, [customers, dateRange])
 
-  // Calculate overall totals (using paginated set)
+  // Calculate overall totals with date filter
   const overallTotals = useMemo(() => {
     let totalDebit = 0
     let totalCredit = 0
@@ -257,9 +296,11 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
     customers.forEach(customer => {
       customer.projects?.forEach(project => {
         project.transactions?.forEach(t => {
-          totalDebit += t.debit_amount || 0
-          totalCredit += t.credit_amount || 0
-          totalTransactions++
+          if (isDateInRange(t.date)) {
+            totalDebit += t.debit_amount || 0
+            totalCredit += t.credit_amount || 0
+            totalTransactions++
+          }
         })
       })
     })
@@ -270,12 +311,42 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
       totalCredit,
       totalTransactions
     }
-  }, [customers])
+  }, [customers, dateRange])
 
-  // Calculate REAL liquidity (using paginated set)
-  const liquidity = useMemo(() => calculateLiquidity(customers), [customers])
+  // Calculate liquidity with date filter
+  const liquidity = useMemo(() => {
+    let totalInflow = 0
+    let totalOutflow = 0
+    let transactionCount = 0
+    
+    const now = new Date()
+    const threeMonthsAgo = new Date()
+    threeMonthsAgo.setMonth(now.getMonth() - 3)
+    
+    customers.forEach(customer => {
+      customer.projects?.forEach(project => {
+        project.transactions?.forEach(t => {
+          const txDate = new Date(t.date)
+          if (txDate >= threeMonthsAgo && isDateInRange(t.date)) {
+            totalInflow += t.credit_amount || 0
+            totalOutflow += t.debit_amount || 0
+            transactionCount++
+          }
+        })
+      })
+    })
+    
+    const velocity = transactionCount > 0 ? (totalInflow + totalOutflow) / transactionCount : 0
+    const ratio = totalOutflow > 0 ? (totalInflow / totalOutflow) * 100 : 0
+    
+    return {
+      velocity: Math.round(velocity),
+      ratio: Math.round(ratio),
+      isHealthy: ratio > 110
+    }
+  }, [customers, dateRange])
 
-  // Calculate per-customer totals (using displayedCustomers after filters)
+  // Calculate per-customer totals
   const customerTotals = useMemo(() => {
     return displayedCustomers.map(customer => {
       let debit = 0
@@ -287,7 +358,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
         if (selectedProject !== 'all' && project.id !== selectedProject) return
         
         projectCount++
-        const filteredTransactions = filterTransactionsByDate(project.transactions)
+        const filteredTransactions = project.transactions.filter(t => isDateInRange(t.date))
         
         filteredTransactions.forEach(t => {
           debit += t.debit_amount || 0
@@ -326,14 +397,17 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
     setSearchTerm('')
   }
 
-  // Pagination functions
-  const totalPages = Math.ceil(totalCount / pageSize)
-
-  const goToPage = (page: number) => {
+  // Handle page navigation with loading state
+  const goToPage = async (page: number) => {
+    setIsLoading(true)
     const params = new URLSearchParams(searchParams)
     params.set('page', page.toString())
     router.push(`?${params.toString()}`)
+    setTimeout(() => setIsLoading(false), 500)
   }
+
+  // Pagination functions
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   const getCardColor = (value: number, type: 'balance' | 'debit' | 'credit' | 'neutral') => {
     if (type === 'balance') {
@@ -363,26 +437,33 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
     }
   }
 
+  // Show skeleton while loading and no data
+  if (isLoading && customers.length === 0) {
+    return <AccountingSkeleton />
+  }
+
   return (
     <div className="min-h-screen bg-[#0A120A] relative overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-transparent to-amber-950/30 animate-gradient-xy"></div>
         <div className="absolute bottom-1/3 left-0 right-0 h-32 bg-gradient-to-t from-[#1A2A1A] to-transparent"></div>
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-0.5 h-0.5 bg-[#D4AF37]/30 rounded-full"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animation: `float-particle ${15 + i * 2}s linear infinite`,
-                animationDelay: `${i * 0.5}s`,
-              }}
-            />
-          ))}
-        </div>
+        {particles.length > 0 && (
+          <div className="absolute inset-0 pointer-events-none">
+            {particles.map((particle, i) => (
+              <div
+                key={i}
+                className="absolute w-0.5 h-0.5 bg-[#D4AF37]/30 rounded-full"
+                style={{
+                  left: particle.left,
+                  top: particle.top,
+                  animation: `float-particle ${particle.duration}s linear infinite`,
+                  animationDelay: particle.delay,
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Flying Bird */}
@@ -415,6 +496,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
               Accounting
+              {isLoading && <Loader2 className="w-5 h-5 text-[#D4AF37] animate-spin" />}
               <span className={`text-xs px-2 py-1 rounded-full bg-gradient-to-r ${glowIntensity === 0 ? 'from-emerald-500/20 to-amber-500/20' : glowIntensity === 1 ? 'from-amber-500/20 to-rose-500/20' : 'from-rose-500/20 to-emerald-500/20'} animate-pulse`}>
                 live
               </span>
@@ -430,11 +512,16 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
             </p>
           </div>
           <Button 
-            onClick={() => router.refresh()}
+            onClick={() => {
+              setIsLoading(true)
+              router.refresh()
+              setTimeout(() => setIsLoading(false), 1000)
+            }}
             variant="outline"
+            disabled={isLoading}
             className="border-[#D4AF37]/30 text-[#D4AF37] hover:bg-[#D4AF37]/10 backdrop-blur-sm"
           >
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin-slow" />
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -449,6 +536,9 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
               <h3 className="text-sm font-medium text-white flex items-center gap-2">
                 <PieChart className="w-4 h-4 text-[#D4AF37]" />
                 Profit/Loss Trend
+                {dateRange.from && dateRange.to && (
+                  <span className="text-[10px] text-cyan-400 ml-2">filtered</span>
+                )}
               </h3>
               <span className="text-xs text-gray-500">last 6 months</span>
             </div>
@@ -491,71 +581,16 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
           </div>
 
           {/* Right side - Stats */}
-          <div className="lg:col-span-2 grid grid-cols-2 gap-3">
-            {[
-              { 
-                label: 'Net Balance', 
-                value: overallTotals.netBalance, 
-                type: 'balance' as const,
-                icon: <DollarSign className="w-4 h-4" />,
-                change: ((overallTotals.totalCredit - overallTotals.totalDebit) / (overallTotals.totalDebit || 1) * 100).toFixed(1)
-              },
-              { 
-                label: 'Total Debit', 
-                value: overallTotals.totalDebit, 
-                type: 'debit' as const,
-                icon: <TrendingDown className="w-4 h-4" />,
-              },
-              { 
-                label: 'Total Credit', 
-                value: overallTotals.totalCredit, 
-                type: 'credit' as const,
-                icon: <TrendingUp className="w-4 h-4" />,
-              },
-              { 
-                label: 'Transactions', 
-                value: overallTotals.totalTransactions, 
-                type: 'neutral' as const,
-                icon: <BarChart3 className="w-4 h-4" />,
-                suffix: 'txns'
-              },
-            ].map((item, idx) => {
-              const isPositive = item.value >= 0
-              const colorClass = getCardColor(item.value, item.type)
-              
-              return (
-                <div
-                  key={item.label}
-                  className="group relative"
-                  onMouseEnter={() => setHoveredCard(item.label)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${colorClass.split(' ')[0]} rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`}></div>
-                  
-                  <div className={`relative bg-black/40 backdrop-blur-sm border-2 ${colorClass.split(' ').slice(3).join(' ')} rounded-xl p-3 transition-all duration-300 hover:translate-y-[-2px] hover:shadow-2xl overflow-hidden`}>
-                    
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    
-                    <div className="flex items-center justify-between mb-1">
-                      <div className={`p-1.5 bg-black/50 rounded-lg group-hover:scale-110 transition-transform ${colorClass.includes('emerald') ? 'text-emerald-400' : colorClass.includes('rose') ? 'text-rose-400' : 'text-amber-400'}`}>
-                        {item.icon}
-                      </div>
-                      {item.change && (
-                        <div className={`flex items-center gap-0.5 text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                          {Math.abs(Number(item.change))}%
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-400">{item.label}</p>
-                    <p className={`text-lg font-bold ${colorClass.includes('emerald') ? 'text-emerald-400' : colorClass.includes('rose') ? 'text-rose-400' : 'text-amber-400'}`}>
-                      ₹<SpinningNumber value={Math.abs(item.value)} color="" />
-                      {item.suffix && <span className="text-xs ml-1 text-gray-500">{item.suffix}</span>}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
+          <div className="lg:col-span-2 grid grid-cols-1 gap-3">
+            <div className="bg-black/40 backdrop-blur-sm border border-[#5F8B4B]/30 rounded-xl p-4 text-center">
+              <p className="text-sm text-gray-400">Financial details are now available on the Dashboard</p>
+              <button 
+                onClick={() => router.push('/dashboard')}
+                className="mt-2 text-xs text-[#D4AF37] hover:underline"
+              >
+                Go to Dashboard →
+              </button>
+            </div>
           </div>
         </div>
 
@@ -693,6 +728,11 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
             <Users className="w-5 h-5 text-[#D4AF37] animate-pulse" />
             <h3 className="text-lg font-medium text-white">Customer Financial Summary</h3>
             <span className="text-sm text-gray-500 ml-auto">({customerTotals.length} customers)</span>
+            {(selectedProject !== 'all' || dateRange.from || dateRange.to) && (
+              <span className="text-xs text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-1 rounded-full">
+                filtered
+              </span>
+            )}
           </div>
 
           <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#D4AF37]/20 scrollbar-track-transparent pr-2">
@@ -801,7 +841,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
                           {customer.projects
                             .filter(p => selectedProject === 'all' || p.id === selectedProject)
                             .map((project, pIdx) => {
-                              const filteredTransactions = filterTransactionsByDate(project.transactions)
+                              const filteredTransactions = project.transactions.filter(t => isDateInRange(t.date))
                               const projectDebit = filteredTransactions.reduce((sum, t) => sum + (t.debit_amount || 0), 0)
                               const projectCredit = filteredTransactions.reduce((sum, t) => sum + (t.credit_amount || 0), 0)
                               const projectBalance = projectCredit - projectDebit
@@ -834,13 +874,6 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
                                       </p>
                                     </div>
                                   </div>
-
-                                  {/* FIXED DATE FORMATTING - added explicit options */}
-                                  {filteredTransactions.map(t => (
-                                    <div key={t.id} className="hidden">
-                                      {/* This is just to show the fix; the actual table below already uses the correct format */}
-                                    </div>
-                                  ))}
                                 </div>
                               )
                             })}
@@ -871,17 +904,17 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
             )}
             {selectedProject !== 'all' && (
               <span className="bg-rose-500/10 text-rose-400 px-3 py-1 rounded-full text-xs border border-rose-500/30">
-                Project
+                Project: {availableProjects.find(p => p.id === selectedProject)?.name || selectedProject}
               </span>
             )}
             {dateRange.from && (
               <span className="bg-cyan-500/10 text-cyan-400 px-3 py-1 rounded-full text-xs border border-cyan-500/30">
-                From {dateRange.from}
+                From {new Date(dateRange.from).toLocaleDateString()}
               </span>
             )}
             {dateRange.to && (
               <span className="bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full text-xs border border-purple-500/30">
-                To {dateRange.to}
+                To {new Date(dateRange.to).toLocaleDateString()}
               </span>
             )}
           </div>
@@ -898,7 +931,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
                 variant="outline"
                 size="sm"
                 onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
+                disabled={currentPage === 1 || isLoading}
                 className="border-[#D4AF37]/30 text-[#D4AF37]"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" /> Previous
@@ -907,7 +940,7 @@ export default function AccountingClient({ customers, totalCount, currentPage, p
                 variant="outline"
                 size="sm"
                 onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalPages || isLoading}
                 className="border-[#D4AF37]/30 text-[#D4AF37]"
               >
                 Next <ChevronRight className="w-4 h-4 ml-1" />

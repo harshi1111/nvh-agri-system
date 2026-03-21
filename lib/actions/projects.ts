@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 interface ProjectData {
   customer_id: string
   name: string
+  type: 'plot' | 'acre'
   acres: number | null
   country: string
   state: string
@@ -15,7 +16,6 @@ interface ProjectData {
   status: string
 }
 
-// Allowed status values – now matching database constraint
 const validStatuses = ['active', 'completed', 'on hold']
 
 export async function createProject(formData: FormData | ProjectData) {
@@ -27,9 +27,12 @@ export async function createProject(formData: FormData | ProjectData) {
   let projectData: ProjectData
 
   if (formData instanceof FormData) {
+    const type = formData.get('type') as 'plot' | 'acre' || 'plot'
+    
     projectData = {
       customer_id: formData.get('customer_id') as string,
       name: formData.get('name') as string,
+      type,
       acres: formData.get('acres') ? parseFloat(formData.get('acres') as string) : null,
       country: (formData.get('country') as string) || 'India',
       state: formData.get('state') as string,
@@ -42,12 +45,10 @@ export async function createProject(formData: FormData | ProjectData) {
     projectData = formData
   }
 
-  // Validate required fields
   if (!projectData.customer_id || !projectData.name || !projectData.state || !projectData.city) {
     return { error: 'Missing required fields' }
   }
 
-  // Validate status
   if (!validStatuses.includes(projectData.status)) {
     return { error: `Invalid status value. Must be one of: ${validStatuses.join(', ')}` }
   }
@@ -57,6 +58,7 @@ export async function createProject(formData: FormData | ProjectData) {
     .insert({
       customer_id: projectData.customer_id,
       name: projectData.name,
+      type: projectData.type,
       acres: projectData.acres,
       country: projectData.country,
       state: projectData.state,
@@ -100,48 +102,56 @@ export async function updateProject(id: string, formData: FormData | Partial<Pro
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  let updateData: Partial<ProjectData>
+  let updateData: any = {}
 
   if (formData instanceof FormData) {
-    updateData = {
-      name: formData.get('name') as string || undefined,
-      acres: formData.get('acres') ? parseFloat(formData.get('acres') as string) : undefined,
-      country: formData.get('country') as string || undefined,
-      state: formData.get('state') as string || undefined,
-      district: formData.get('district') as string || undefined,
-      city: formData.get('city') as string || undefined,
-      village: formData.get('village') as string || undefined,
-      status: formData.get('status') as string || undefined
-    }
+    const name = formData.get('name') as string
+    if (name) updateData.name = name
+    
+    const type = formData.get('type') as string
+    if (type && (type === 'plot' || type === 'acre')) updateData.type = type
+    
+    const acres = formData.get('acres') as string
+    if (acres !== undefined && acres !== '') updateData.acres = parseFloat(acres)
+    
+    const country = formData.get('country') as string
+    if (country) updateData.country = country
+    
+    const state = formData.get('state') as string
+    if (state) updateData.state = state
+    
+    const district = formData.get('district') as string
+    if (district !== undefined && district !== '') updateData.district = district
+    
+    const city = formData.get('city') as string
+    if (city) updateData.city = city
+    
+    const village = formData.get('village') as string
+    if (village !== undefined && village !== '') updateData.village = village
+    
+    const status = formData.get('status') as string
+    if (status && validStatuses.includes(status)) updateData.status = status
   } else {
-    updateData = formData
-  }
-
-  // Remove undefined and empty strings, and validate status
-  const cleanUpdateData: Partial<ProjectData> = {}
-  for (const [key, value] of Object.entries(updateData)) {
-    if (value !== undefined && value !== '') {
-      if (key === 'status') {
-        // Only include status if it's a valid value
-        if (validStatuses.includes(value as string)) {
-          // FIXED: Use type assertion to bypass strict type checking
-          (cleanUpdateData as any)[key] = value
-        } else {
-          console.error(`[updateProject] Attempted to set invalid status: "${value}"`)
-          return { error: `Invalid status value. Must be one of: ${validStatuses.join(', ')}` }
-        }
-      } else {
-        // FIXED: Use type assertion to bypass strict type checking
-        (cleanUpdateData as any)[key] = value
+    // Handle object data
+    updateData = { ...formData }
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined || updateData[key] === '') {
+        delete updateData[key]
       }
-    }
+    })
   }
 
-  console.log('[updateProject] cleanUpdateData:', cleanUpdateData)
+  console.log('[updateProject] Updating with:', updateData)
+
+  // If nothing to update, return early
+  if (Object.keys(updateData).length === 0) {
+    return { success: true, project: null }
+  }
 
   const { data, error } = await supabase
     .from('projects')
-    .update(cleanUpdateData)
+    .update(updateData)
     .eq('id', id)
     .select()
     .single()

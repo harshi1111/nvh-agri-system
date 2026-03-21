@@ -2,7 +2,8 @@ export type Project = {
   id: string
   customer_id: string
   name: string
-  acres: number | null
+  type: 'plot' | 'acre'          // 👈 NEW: type of project
+  acres: number | null            // kept for compatibility, not used in new system
   country: string
   state: string | null
   district: string | null
