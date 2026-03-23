@@ -23,7 +23,7 @@ export default async function DashboardPage() {
     `)
     .eq('is_active', true)
 
-  // Get recent transactions from plot_transactions (actual transactions)
+  // Get recent transactions from plot_transactions
   const { data: recentPlotTransactions } = await supabase
     .from('plot_transactions')
     .select(`
@@ -33,16 +33,17 @@ export default async function DashboardPage() {
       debit_amount,
       credit_amount,
       description,
-      plots!inner (
+      plot_id,
+      plots:plot_id (
         id,
-        project_id,
         plot_number,
         acre_number,
-        projects!inner (
+        project_id,
+        projects:project_id (
           id,
           name,
           customer_id,
-          customers!inner (
+          customers:customer_id (
             id,
             full_name
           )
@@ -52,7 +53,7 @@ export default async function DashboardPage() {
     .order('date', { ascending: false })
     .limit(10)
 
-  // Also get recent project-level transactions if any
+  // Get recent project-level transactions
   const { data: recentProjectTransactions } = await supabase
     .from('transactions')
     .select(`
@@ -62,11 +63,12 @@ export default async function DashboardPage() {
       debit_amount,
       credit_amount,
       description,
-      projects (
+      project_id,
+      projects:project_id (
         id,
         name,
         customer_id,
-        customers (
+        customers:customer_id (
           id,
           full_name
         )
@@ -74,45 +76,6 @@ export default async function DashboardPage() {
     `)
     .order('date', { ascending: false })
     .limit(5)
-
-  // Combine and sort both types of transactions
-  const allTransactions = [
-    ...(recentPlotTransactions || []).map(t => ({
-      id: t.id,
-      date: t.date,
-      transaction_type_id: t.transaction_type_id,
-      debit_amount: t.debit_amount || 0,
-      credit_amount: t.credit_amount || 0,
-      description: t.description,
-      type: 'plot_transaction',
-      projects: {
-        name: t.plots?.projects?.name,
-        customers: {
-          full_name: t.plots?.projects?.customers?.full_name
-        }
-      }
-    })),
-    ...(recentProjectTransactions || []).map(t => ({
-      id: t.id,
-      date: t.date,
-      transaction_type_id: t.transaction_type_id,
-      debit_amount: t.debit_amount || 0,
-      credit_amount: t.credit_amount || 0,
-      description: t.description,
-      type: 'project_transaction',
-      projects: {
-        name: t.projects?.name,
-        customers: {
-          full_name: t.projects?.customers?.full_name
-        }
-      }
-    }))
-  ]
-
-  // Sort by date descending and take top 10
-  const recentTransactions = allTransactions
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 10)
 
   // Map transaction type ID to name
   const idToTypeMap: Record<number, string> = {
@@ -126,16 +89,63 @@ export default async function DashboardPage() {
     8: 'investment'
   }
 
-  // Add type names to transactions
-  const transactionsWithType = recentTransactions.map(t => ({
-    ...t,
-    type: idToTypeMap[t.transaction_type_id] || 'unknown'
-  }))
+  // Transform plot transactions
+  const transformedPlotTransactions = (recentPlotTransactions || []).map(t => {
+    // Handle the nested structure safely
+    const plotsData = t.plots as any
+    const projectsData = plotsData?.projects as any
+    const customersData = projectsData?.customers as any
+    
+    return {
+      id: t.id,
+      date: t.date,
+      transaction_type_id: t.transaction_type_id,
+      debit_amount: t.debit_amount || 0,
+      credit_amount: t.credit_amount || 0,
+      description: t.description,
+      type: idToTypeMap[t.transaction_type_id] || 'unknown',
+      project_id: plotsData?.project_id || projectsData?.id,
+      projects: {
+        name: projectsData?.name,
+        customers: {
+          full_name: customersData?.full_name
+        }
+      }
+    }
+  })
+
+  // Transform project transactions
+  const transformedProjectTransactions = (recentProjectTransactions || []).map(t => {
+    const projectsData = t.projects as any
+    const customersData = projectsData?.customers as any
+    
+    return {
+      id: t.id,
+      date: t.date,
+      transaction_type_id: t.transaction_type_id,
+      debit_amount: t.debit_amount || 0,
+      credit_amount: t.credit_amount || 0,
+      description: t.description,
+      type: idToTypeMap[t.transaction_type_id] || 'unknown',
+      project_id: t.project_id,
+      projects: {
+        name: projectsData?.name,
+        customers: {
+          full_name: customersData?.full_name
+        }
+      }
+    }
+  })
+
+  // Combine and sort by date
+  const allTransactions = [...transformedPlotTransactions, ...transformedProjectTransactions]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 10)
 
   return (
     <DashboardClient 
       customers={customers || []} 
-      recentTransactions={transactionsWithType || []} 
+      recentTransactions={allTransactions || []} 
     />
   )
 }
