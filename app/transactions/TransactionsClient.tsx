@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   Search, X, ChevronLeft, ArrowLeft, Star, Users, Calendar, Leaf, 
-  Filter, ChevronDown, Calendar as CalendarIcon, Clock, RefreshCw
+  Filter, ChevronDown, Calendar as CalendarIcon, RefreshCw
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -24,12 +24,6 @@ const CustomerDetailClient = dynamic(
   }
 )
 
-interface TransactionType {
-  id: number
-  name: string
-  type: 'inflow' | 'outflow'
-}
-
 interface Customer {
   id: string
   full_name: string
@@ -48,10 +42,10 @@ interface Customer {
 interface TransactionsClientProps {
   customers: Customer[]
   frequentCustomers: Customer[]
-  transactionTypes: TransactionType[]
+  transactionTypes: any[]
 }
 
-export default function TransactionsClient({ customers, frequentCustomers, transactionTypes }: TransactionsClientProps) {
+export default function TransactionsClient({ customers, frequentCustomers }: TransactionsClientProps) {
   const router = useRouter()
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -64,16 +58,14 @@ export default function TransactionsClient({ customers, frequentCustomers, trans
     from: '',
     to: ''
   })
-  const [selectedTransactionType, setSelectedTransactionType] = useState<string>('all')
   const [activeFiltersCount, setActiveFiltersCount] = useState(0)
 
   // Update active filters count
   useEffect(() => {
     let count = 0
     if (dateRange.from || dateRange.to) count++
-    if (selectedTransactionType !== 'all') count++
     setActiveFiltersCount(count)
-  }, [dateRange, selectedTransactionType])
+  }, [dateRange])
 
   // Filter customers based on search
   const filteredCustomers = useMemo(() => {
@@ -88,11 +80,11 @@ export default function TransactionsClient({ customers, frequentCustomers, trans
   const fetchCustomerDetails = async (customerId: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/customers/${customerId}?${new URLSearchParams({
-        fromDate: dateRange.from,
-        toDate: dateRange.to,
-        transactionType: selectedTransactionType
-      })}`)
+      const params = new URLSearchParams()
+      if (dateRange.from) params.append('fromDate', dateRange.from)
+      if (dateRange.to) params.append('toDate', dateRange.to)
+      
+      const response = await fetch(`/api/customers/${customerId}?${params.toString()}`)
       const data = await response.json()
       console.log('Fetched customer with projects:', data.projects?.length || 0, 'projects')
       setSelectedCustomer(data)
@@ -116,7 +108,6 @@ export default function TransactionsClient({ customers, frequentCustomers, trans
   // Clear filters
   const clearFilters = () => {
     setDateRange({ from: '', to: '' })
-    setSelectedTransactionType('all')
   }
 
   // Apply filters and refresh
@@ -222,26 +213,6 @@ export default function TransactionsClient({ customers, frequentCustomers, trans
                           placeholder="To"
                         />
                       </div>
-                    </div>
-
-                    {/* Transaction Type */}
-                    <div>
-                      <label className="block text-xs font-medium text-gray-400 mb-1.5 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        Transaction Type
-                      </label>
-                      <select
-                        value={selectedTransactionType}
-                        onChange={(e) => setSelectedTransactionType(e.target.value)}
-                        className="w-full bg-black/60 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                      >
-                        <option value="all">All Types</option>
-                        {transactionTypes.map(type => (
-                          <option key={type.id} value={type.name}>
-                            {type.name.charAt(0).toUpperCase() + type.name.slice(1)}
-                          </option>
-                        ))}
-                      </select>
                     </div>
                   </div>
 
@@ -352,11 +323,6 @@ export default function TransactionsClient({ customers, frequentCustomers, trans
                 {dateRange.to && (
                   <span className="bg-purple-500/10 text-purple-400 px-2 py-1 rounded-full border border-purple-500/30">
                     To {dateRange.to}
-                  </span>
-                )}
-                {selectedTransactionType !== 'all' && (
-                  <span className="bg-amber-500/10 text-amber-400 px-2 py-1 rounded-full border border-amber-500/30">
-                    Type: {selectedTransactionType}
                   </span>
                 )}
                 <button

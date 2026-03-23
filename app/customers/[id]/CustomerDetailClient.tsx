@@ -87,14 +87,25 @@ export default function CustomerDetailClient({ customer, initialProjects }: Cust
     setIsZoomViewOpen(true)
   }
 
-  const handleProjectUpdated = () => {
-    // Refresh projects list
-    const refreshProjects = async () => {
-      const response = await fetch(`/api/customers/${customer.id}/projects`)
-      const data = await response.json()
-      setProjects(data)
+  const handleProjectUpdated = (updatedProject?: Project) => {
+    if (updatedProject) {
+      // Update the specific project in the list
+      setProjects(prevProjects => 
+        prevProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
+      )
+      // Also update selectedProject if it's the same one
+      if (selectedProject && selectedProject.id === updatedProject.id) {
+        setSelectedProject(updatedProject)
+      }
+    } else {
+      // Fallback: refresh all projects
+      const refreshProjects = async () => {
+        const response = await fetch(`/api/customers/${customer.id}/projects`)
+        const data = await response.json()
+        setProjects(data)
+      }
+      refreshProjects()
     }
-    refreshProjects()
   }
 
   return (

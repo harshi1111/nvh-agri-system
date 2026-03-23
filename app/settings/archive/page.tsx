@@ -4,12 +4,12 @@ import ArchiveClient from './ArchiveClient'
 export default async function ArchivePage() {
   const supabase = await createClient()
   
-  // Get deleted customers (is_active = false)
+  // Get deleted customers (is_active = false) with archive_reason and archived_at
   const { data, error } = await supabase
     .from('customers')
     .select('*')
     .eq('is_active', false)
-    .order('created_at', { ascending: false })  // Use created_at instead of updated_at
+    .order('archived_at', { ascending: false, nullsLast: true })
 
   if (error) {
     console.error('Error fetching deleted customers:', error)

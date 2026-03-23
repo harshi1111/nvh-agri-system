@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Project } from '@/types/project'
 import { Plot } from '@/types/plot'
 import { 
@@ -19,7 +19,7 @@ interface ProjectZoomViewProps {
   isOpen: boolean
   onClose: () => void
   project: Project | null
-  onUpdate?: () => void
+  onUpdate?: (updatedProject?: Project) => void
   onDelete?: (projectId: string) => Promise<void>
 }
 
@@ -27,6 +27,7 @@ export default function ProjectZoomView({
   isOpen, onClose, project, onUpdate, onDelete 
 }: ProjectZoomViewProps) {
   // --- State ---
+  const [localProject, setLocalProject] = useState<Project | null>(project)
   const [isEditing, setIsEditing] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeletingProject, setIsDeletingProject] = useState(false)
@@ -42,6 +43,9 @@ export default function ProjectZoomView({
   const [selectedPlotType, setSelectedPlotType] = useState<'plot' | 'acre'>('plot')
   const [plotSearchTerm, setPlotSearchTerm] = useState('')
   const [plotTypeFilter, setPlotTypeFilter] = useState<'all' | 'plot' | 'acre'>('all')
+  
+  // Ref to track if we just updated to prevent overwrite
+  const justUpdatedRef = useRef(false)
 
   const [countries] = useState(Country.getAllCountries())
   const [states, setStates] = useState<any[]>([])
@@ -50,10 +54,7 @@ export default function ProjectZoomView({
   // Filter plots based on search and type
   const filteredPlots = useMemo(() => {
     return plots.filter(plot => {
-      // Filter by type
       if (plotTypeFilter !== 'all' && plot.type !== plotTypeFilter) return false
-      
-      // Filter by search term
       if (plotSearchTerm) {
         const searchLower = plotSearchTerm.toLowerCase()
         if (plot.type === 'plot') {
@@ -62,7 +63,6 @@ export default function ProjectZoomView({
           return plot.acre_number?.toLowerCase().includes(searchLower)
         }
       }
-      
       return true
     })
   }, [plots, plotSearchTerm, plotTypeFilter])
@@ -70,7 +70,11 @@ export default function ProjectZoomView({
   // Load plots when project opens
   useEffect(() => {
     if (project) {
-      setEditedProject(project)
+      // Only reset localProject if we're not in the middle of an update
+      if (!justUpdatedRef.current) {
+        setLocalProject(project)
+        setEditedProject(project)
+      }
       loadPlots()
       // Load location data for editing
       if (project.country) {
@@ -89,10 +93,10 @@ export default function ProjectZoomView({
   }, [project])
 
   const loadPlots = async () => {
-    if (!project) return
+    if (!localProject) return
     setIsLoadingPlots(true)
     try {
-      const data = await getPlotsByProject(project.id)
+      const data = await getPlotsByProject(localProject.id)
       setPlots(data)
     } catch (error) {
       console.error('Failed to load plots:', error)
@@ -103,11 +107,10 @@ export default function ProjectZoomView({
 
   // --- Handlers ---
   const handleUpdateProject = async () => {
-    if (!project || !editedProject) return
+    if (!localProject || !editedProject) return
     
     setIsUpdatingProject(true)
     try {
-      // Only include fields that exist in the database
       const projectData: any = {}
       
       if (editedProject.name !== undefined) projectData.name = editedProject.name
@@ -117,23 +120,45 @@ export default function ProjectZoomView({
       if (editedProject.district !== undefined) projectData.district = editedProject.district
       if (editedProject.city !== undefined) projectData.city = editedProject.city
       if (editedProject.village !== undefined) projectData.village = editedProject.village
-      // Don't send acres - it's not used anymore
-      // Don't send type - it can't be changed after creation
       
-      // Only send if there's something to update
       if (Object.keys(projectData).length === 0) {
         setIsEditing(false)
         setIsUpdatingProject(false)
         return
       }
       
-      const result = await updateProject(project.id, projectData)
+      const result = await updateProject(localProject.id, projectData)
       if (result.error) {
         console.error('Failed to update project:', result.error)
         return
       }
+      
+      // Mark that we just updated to prevent useEffect from overwriting
+      justUpdatedRef.current = true
+      
+      // Create the updated project object
+      let updatedProjectData: Project
+      if (result.project) {
+        updatedProjectData = result.project
+      } else {
+        updatedProjectData = { ...localProject, ...projectData } as Project
+      }
+      
+      // Update local project state with the new data for instant UI update
+      setLocalProject(updatedProjectData)
+      setEditedProject(updatedProjectData)
+      
       setIsEditing(false)
-      if (onUpdate) onUpdate()
+      
+      // Pass the updated project to parent so it can update its list
+      if (onUpdate) {
+        onUpdate(updatedProjectData)
+      }
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        justUpdatedRef.current = false
+      }, 500)
     } catch (error) {
       console.error('Error updating project:', error)
     } finally {
@@ -142,17 +167,17 @@ export default function ProjectZoomView({
   }
 
   const handleDeleteProject = async () => {
-    if (!project) return
+    if (!localProject) return
     setIsDeletingProject(true)
     try {
-      const result = await deleteProject(project.id)
+      const result = await deleteProject(localProject.id)
       if (result.error) {
         console.error('Failed to delete project:', result.error)
         return
       }
       setShowDeleteConfirm(false)
       onClose()
-      if (onDelete) await onDelete(project.id)
+      if (onDelete) await onDelete(localProject.id)
       if (onUpdate) onUpdate()
     } catch (error) {
       console.error('Error deleting project:', error)
@@ -189,7 +214,7 @@ export default function ProjectZoomView({
   }
 
   // --- Early return if not open ---
-  if (!isOpen || !project) return null
+  if (!isOpen || !localProject) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
@@ -204,7 +229,7 @@ export default function ProjectZoomView({
           <div className="flex-1 min-w-0">
             <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2 sm:gap-3 truncate">
               <Leaf className="w-5 h-5 sm:w-6 sm:h-6 text-[#D4AF37] flex-shrink-0" />
-              <span className="truncate">{project.name}</span>
+              <span className="truncate">{localProject.name}</span>
             </h2>
           </div>
           
@@ -276,7 +301,7 @@ export default function ProjectZoomView({
                     {isUpdatingProject ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button 
-                    onClick={() => { setIsEditing(false); setEditedProject(project); }} 
+                    onClick={() => { setIsEditing(false); setEditedProject(localProject); }} 
                     className="px-3 py-1.5 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors text-xs"
                   >
                     Cancel
@@ -285,6 +310,16 @@ export default function ProjectZoomView({
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Farm Name <span className="text-[#D4AF37]">*</span></label>
+                  <input
+                    type="text"
+                    value={editedProject.name || ''}
+                    onChange={(e) => setEditedProject({ ...editedProject, name: e.target.value })}
+                    className="w-full bg-black/50 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-white text-sm"
+                    placeholder="Enter farm name"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Status</label>
                   <select
@@ -489,7 +524,7 @@ export default function ProjectZoomView({
         <AddPlotModal
           isOpen={showAddPlotModal}
           onClose={() => setShowAddPlotModal(false)}
-          projectId={project.id}
+          projectId={localProject.id}
           type={selectedPlotType}
           onPlotAdded={loadPlots}
         />
@@ -503,14 +538,14 @@ export default function ProjectZoomView({
             setShowEditPlotModal(false)
             setEditingPlot(null)
           }}
-          projectId={project.id}
+          projectId={localProject.id}
           type={editingPlot.type}
           onPlotAdded={loadPlots}
           editingPlot={editingPlot}
         />
       )}
 
-      {/* Plot Transactions Modal - FIXED: Use a function that updates plots without closing modal */}
+      {/* Plot Transactions Modal */}
       {selectedPlot && showPlotTransactions && (
         <PlotTransactionsView
           isOpen={showPlotTransactions}
@@ -520,7 +555,6 @@ export default function ProjectZoomView({
           }}
           plot={selectedPlot}
           onTransactionUpdate={() => {
-            // Just refresh the plot data in background, don't close modal
             loadPlots()
           }}
         />

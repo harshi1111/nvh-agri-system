@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     .from('customers')
     .select('*')
     .eq('is_active', true)
-    .order('created_at', { ascending: false })
+    .order('full_name', { ascending: true })
     .range(from, to)
 
   if (error) {

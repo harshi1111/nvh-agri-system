@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import RevenueExpenseModal from '@/components/RevenueExpenseModal'
+import FarmTasksModal from '@/components/FarmTasksModal'
 import { 
   Users, 
   FolderTree, 
@@ -43,6 +45,7 @@ import {
   PenLine
 } from 'lucide-react'
 
+
 interface DashboardClientProps {
   customers: any[]
   recentTransactions: any[]
@@ -83,7 +86,7 @@ function SpinningNumber({ value, color, suffix = '', prefix = '' }: { value: num
   }, [value])
 
   return (
-    <span className={`inline-block transition-all duration-100 ${spinning ? 'animate-spin-slot' : ''} ${color}`}>
+    <span className={`inline-block transition-all duration-100 ${spinning ? 'animate-spin-slot' : ''} ${color}`} suppressHydrationWarning>
       {prefix}{displayValue.toLocaleString()}{suffix}
     </span>
   )
@@ -477,7 +480,7 @@ function JournalModal({ isOpen, onClose, entries, onSave, onDelete }: {
     setEditTitle(newEntry.title)
     setEditContent(newEntry.content)
     setEditDate(newEntry.date)
-    setEditMood(newEntry.mood)
+    setEditMood(newEntry.mood || '🌱 Productive')
     setIsEditing(true)
   }
 
@@ -595,6 +598,9 @@ export default function DashboardClient({ customers, recentTransactions }: Dashb
   const [pulsePercentage, setPulsePercentage] = useState(false)
   const [isJournalOpen, setIsJournalOpen] = useState(false)
   const [isTodoOpen, setIsTodoOpen] = useState(false)
+  const [isRevenueModalOpen, setIsRevenueModalOpen] = useState(false)
+  const [isFarmTasksOpen, setIsFarmTasksOpen] = useState(false)
+  
   const [tasks, setTasks] = useState<TodoItem[]>([
     { id: 1, text: 'Check fertilizer stock for wheat fields', completed: false },
     { id: 2, text: 'Call Nakamoto about pending payment', completed: false },
@@ -742,7 +748,6 @@ export default function DashboardClient({ customers, recentTransactions }: Dashb
                       </div>
                     </div>
                   </div>
-                  {/* FIXED: Added suppressHydrationWarning to prevent number formatting mismatch */}
                   <p 
                     className={`text-xs font-medium ml-2 flex-shrink-0 ${t.credit_amount > 0 ? 'text-[#7AA65A]' : 'text-[#B85C3A]'}`}
                     suppressHydrationWarning
@@ -762,14 +767,43 @@ export default function DashboardClient({ customers, recentTransactions }: Dashb
             </div>
 
             {/* 2. Expenses vs Revenue Donut Chart */}
-            <div className="bg-[#0F180F] rounded-xl p-5 border-2 border-[#D4AF37]/30 hover:border-[#D4AF37]/60 transition-all cursor-pointer" onClick={() => router.push('/accounting')}>
+            <div className="bg-[#0F180F] rounded-xl p-5 border-2 border-[#D4AF37]/30 hover:border-[#D4AF37]/60 transition-all cursor-pointer" onClick={() => setIsRevenueModalOpen(true)}>
               <div className="flex items-center gap-2 mb-4"><PieChart className="w-4 h-4 text-[#D4AF37]" /><h3 className="text-sm font-medium text-white">Expenses vs Revenue</h3><span className="text-[10px] text-gray-500 ml-auto">Click to view details</span></div>
               <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="flex justify-center w-full md:w-1/2"><DonutChart revenue={stats.totalCredit} expenses={stats.totalDebit} onClick={() => router.push('/accounting')} /></div>
+                <div className="flex justify-center w-full md:w-1/2"><DonutChart revenue={stats.totalCredit} expenses={stats.totalDebit} onClick={() => setIsRevenueModalOpen(true)} /></div>
                 <div className="w-full md:w-1/2 space-y-3 pl-0 md:pl-4">
-                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#7AA65A]"></div><span className="text-xs text-gray-400">Revenue</span></div><span className="text-sm font-medium text-[#7AA65A]">₹{stats.totalCredit.toLocaleString()}</span></div>
-                  <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#B85C3A]"></div><span className="text-xs text-gray-400">Expenses</span></div><span className="text-sm font-medium text-[#B85C3A]">₹{stats.totalDebit.toLocaleString()}</span></div>
-                  <div className="pt-3 border-t border-[#D4AF37]/10"><div className="flex items-center justify-between"><span className="text-xs text-gray-400">Profit Margin</span><span className={`text-sm font-semibold ${stats.netBalance >= 0 ? 'text-[#7AA65A]' : 'text-[#B85C3A]'}`}>{stats.totalCredit > 0 ? ((stats.netBalance / stats.totalCredit) * 100).toFixed(1) : '0'}%</span></div><div className="flex items-center justify-between mt-2"><span className="text-[10px] text-gray-500">Net Balance</span><span className={`text-xs font-medium ${stats.netBalance >= 0 ? 'text-[#7AA65A]' : 'text-[#B85C3A]'}`}>₹{stats.netBalance.toLocaleString()}</span></div></div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#7AA65A]"></div>
+                      <span className="text-xs text-gray-400">Revenue</span>
+                    </div>
+                    <span className="text-sm font-medium text-[#7AA65A]" suppressHydrationWarning>
+                      ₹{stats.totalCredit.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-[#B85C3A]"></div>
+                      <span className="text-xs text-gray-400">Expenses</span>
+                    </div>
+                    <span className="text-sm font-medium text-[#B85C3A]" suppressHydrationWarning>
+                      ₹{stats.totalDebit.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="pt-3 border-t border-[#D4AF37]/10">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">Profit Margin</span>
+                      <span className={`text-sm font-semibold ${stats.netBalance >= 0 ? 'text-[#7AA65A]' : 'text-[#B85C3A]'}`}>
+                        {stats.totalCredit > 0 ? ((stats.netBalance / stats.totalCredit) * 100).toFixed(1) : '0'}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-[10px] text-gray-500">Net Balance</span>
+                      <span className={`text-xs font-medium ${stats.netBalance >= 0 ? 'text-[#7AA65A]' : 'text-[#B85C3A]'}`} suppressHydrationWarning>
+                        ₹{stats.netBalance.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -802,42 +836,36 @@ export default function DashboardClient({ customers, recentTransactions }: Dashb
               </div>
             </div>
 
-            {/* Todo List with Journal Icon - Sorted: uncompleted first */}
-            <div className="bg-[#0F180F] rounded-xl p-3 border-2 border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <ListTodo className="w-4 h-4 text-[#D4AF37]" />
-                  <h3 className="text-xs font-medium text-white">To-Do List</h3>
-                  <span className="text-[10px] text-gray-500 ml-1">{tasks.filter(t => !t.completed).length} remaining</span>
-                </div>
-                <button 
-                  onClick={() => setIsJournalOpen(true)} 
-                  className="text-[10px] text-[#AD8B6D] hover:text-[#CDA87A] transition-colors flex items-center gap-1"
-                >
-                  <PenLine className="w-3 h-3" /> Journal
-                </button>
+            {/* Farm Tasks Button */}
+            <div className="bg-[#0F180F] rounded-xl p-3 border-2 border-[#D4AF37]/50 hover:border-[#D4AF37] transition-all cursor-pointer" onClick={() => setIsFarmTasksOpen(true)}>
+              <div className="flex items-center gap-2 mb-2">
+                <Leaf className="w-4 h-4 text-[#D4AF37]" />
+                <h3 className="text-xs font-medium text-white">Farm Tasks</h3>
               </div>
-              <div className="space-y-2 cursor-pointer" onClick={() => setIsTodoOpen(true)}>
-                {[...tasks].sort((a, b) => {
-                  if (a.completed === b.completed) return 0
-                  return a.completed ? 1 : -1
-                }).slice(0, 4).map((task) => (
-                  <div key={task.id} className="flex items-center gap-2">
-                    <div>{task.completed ? <CheckCircle2 className="w-3 h-3 text-[#7AA65A] flex-shrink-0" /> : <Circle className="w-3 h-3 text-gray-500 flex-shrink-0" />}</div>
-                    <span className={`text-[11px] truncate ${task.completed ? 'text-gray-500 line-through' : 'text-gray-300'}`}>{task.text}</span>
-                  </div>
-                ))}
-                {tasks.length > 4 && <p className="text-[9px] text-gray-600 text-center pt-1">+{tasks.length - 4} more tasks</p>}
-              </div>
-              <div className="mt-3 pt-2 border-t border-[#D4AF37]/10 flex items-center justify-between">
-                <span className="text-[9px] text-gray-500">Click tasks to manage</span>
-                <ArrowRight className="w-3 h-3 text-[#D4AF37]" />
+              <p className="text-[11px] text-gray-400">Manage to-do lists for each farm</p>
+              <div className="mt-2 text-right">
+                <span className="text-[10px] text-[#D4AF37]">Click to open →</span>
               </div>
             </div>
+
           </div>
         </div>
       </div>
 
+      <RevenueExpenseModal 
+        isOpen={isRevenueModalOpen}
+        onClose={() => setIsRevenueModalOpen(false)}
+        revenue={stats.totalCredit}
+        expenses={stats.totalDebit}
+        customers={customers}
+      />
+
+      <FarmTasksModal
+        isOpen={isFarmTasksOpen}
+        onClose={() => setIsFarmTasksOpen(false)}
+        customers={customers}
+      />
+      
       <style jsx>{`
         @keyframes sunrise { 0% { opacity: 0; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } 100% { opacity: 0; transform: scale(0.8); } }
         @keyframes float-particle { 0% { transform: translateY(0) translateX(0); opacity: 0; } 10% { opacity: 0.3; } 90% { opacity: 0.2; } 100% { transform: translateY(-80px) translateX(40px); opacity: 0; } }

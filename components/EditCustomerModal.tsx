@@ -201,10 +201,16 @@ export default function EditCustomerModal({ isOpen, onClose, customer, onCustome
               <label className="block text-xs font-medium text-gray-300 mb-1">Aadhaar</label>
               <input
                 type="text"
+                inputMode="numeric"
                 value={formData.aadhaar_number}
-                onChange={(e) => setFormData({...formData, aadhaar_number: e.target.value})}
-                className="w-full px-3 py-2 text-sm bg-black/50 border border-[#D4AF37]/30 rounded-lg text-white"
-                placeholder="12 digits"
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '')
+                  if (value.length <= 12) {
+                    setFormData({...formData, aadhaar_number: value})
+                  }
+                }}
+                className="w-full px-3 py-2 text-sm bg-black/50 border border-[#D4AF37]/30 rounded-lg text-white font-mono"
+                placeholder="12 digits only"
                 maxLength={12}
               />
             </div>

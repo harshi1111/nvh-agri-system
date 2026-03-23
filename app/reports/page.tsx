@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import ReportsClient from './ReportsClient'
 
-const PAGE_SIZE = 10 // customers per page
+const PAGE_SIZE = 100 // Increased to fetch more customers initially
 
-// Map database id to frontend type name
+// Map transaction type ID to name
 const idToTypeMap: Record<number, string> = {
   1: 'labour',
   2: 'sprinkler',
@@ -15,119 +15,81 @@ const idToTypeMap: Record<number, string> = {
   8: 'investment'
 }
 
-interface PageProps {
-  searchParams: Promise<{ page?: string }>
-}
-
-// Define types for the database response
-interface Transaction {
-  id: string
-  sequence_number: number
-  date: string
-  transaction_type_id: number
-  quantity: number | null
-  unit: string | null
-  debit_amount: number
-  credit_amount: number
-  description: string | null
-}
-
-interface Project {
-  id: string
-  name: string
-  status: string
-  acres: number | null
-  transactions: Transaction[]
-}
-
-interface Customer {
-  id: string
-  full_name: string
-  contact_number: string
-  email: string | null
-  address: string | null
-  is_active: boolean
-  created_at: string
-  projects: Project[]
-}
-
-export default async function ReportsPage({ searchParams }: PageProps) {
-  const { page = '1' } = await searchParams
-  const currentPage = parseInt(page, 10)
-  const from = (currentPage - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
-
+export default async function ReportsPage() {
   const supabase = await createClient()
-
-  // Get total count of active customers
-  const { count: totalCount } = await supabase
-    .from('customers')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true)
-
-  if (!totalCount) {
-    return <ReportsClient customers={[]} totalCount={0} currentPage={1} pageSize={PAGE_SIZE} />
-  }
-
-  // Fetch paginated customers with projects and transactions
-  const { data: customers, error } = await supabase
-    .from('customers')
-    .select(`
-      *,
-      projects (
+  
+  try {
+    // First get total count
+    const { count: totalCount } = await supabase
+      .from('customers')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true)
+    
+    console.log('Total customers count:', totalCount)
+    
+    // Fetch ALL customers with their projects and transactions (first PAGE_SIZE)
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select(`
         id,
-        name,
-        status,
-        acres,
-        transactions (
+        full_name,
+        contact_number,
+        email,
+        address,
+        projects:projects(
           id,
-          sequence_number,
-          date,
-          transaction_type_id,
-          quantity,
-          unit,
-          debit_amount,
-          credit_amount,
-          description
+          name,
+          status,
+          acres,
+          transactions:transactions(
+            id,
+            date,
+            transaction_type_id,
+            debit_amount,
+            credit_amount,
+            description
+          )
         )
-      )
-    `)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .range(from, to)
-
-  if (error) {
-    console.error('Error fetching customers:', error)
-    return <ReportsClient customers={[]} totalCount={0} currentPage={1} pageSize={PAGE_SIZE} />
-  }
-
-  // Transform data - FIXED: Added type for project parameter
-  const transformedCustomers = customers.map((customer: Customer) => ({
-    ...customer,
-    projects: customer.projects.map((project: Project) => ({  // Added type here
-      ...project,
-      transactions: project.transactions.map((transaction: Transaction) => {
-        const type = idToTypeMap[transaction.transaction_type_id] || 'unknown'
-        return {
+      `)
+      .eq('is_active', true)
+      .order('full_name', { ascending: true })
+      .range(0, PAGE_SIZE - 1)
+    
+    if (error) {
+      console.error('Error fetching customers:', error)
+      return <ReportsClient customers={[]} totalCount={0} currentPage={1} pageSize={10} />
+    }
+    
+    console.log('Fetched customers count:', customers?.length)
+    
+    // Transform the data to include transaction type names
+    const transformedCustomers = customers?.map(customer => ({
+      ...customer,
+      projects: customer.projects?.map(project => ({
+        ...project,
+        transactions: project.transactions?.map(transaction => ({
           id: transaction.id,
           date: transaction.date,
-          type,
-          description: transaction.description || '',
-          quantity: transaction.quantity || null,
-          unit: transaction.unit || null,
           debit_amount: transaction.debit_amount || 0,
           credit_amount: transaction.credit_amount || 0,
-        }
-      })
-    }))
-  }))
-
-  return (
-    <ReportsClient 
-      customers={transformedCustomers} 
-      totalCount={totalCount} 
-      currentPage={currentPage} 
-      pageSize={PAGE_SIZE}
-    />
-  )
+          description: transaction.description,
+          type: idToTypeMap[transaction.transaction_type_id] || 'unknown'
+        })) || []
+      })) || []
+    })) || []
+    
+    console.log('Transformed customers:', transformedCustomers.length)
+    
+    return (
+      <ReportsClient 
+        customers={transformedCustomers} 
+        totalCount={totalCount || 0} 
+        currentPage={1} 
+        pageSize={10}
+      />
+    )
+  } catch (error) {
+    console.error('Reports page error:', error)
+    return <ReportsClient customers={[]} totalCount={0} currentPage={1} pageSize={10} />
+  }
 }
