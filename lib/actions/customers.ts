@@ -206,9 +206,9 @@ export async function updateCustomer(formData: FormData) {
 
 
 // ===============================
-// Soft Delete Customer
+// Soft Delete Customer with Reason
 // ===============================
-export async function deleteCustomer(id: string) {
+export async function deleteCustomer(id: string, reason?: string) {
   const supabase = await createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
@@ -216,7 +216,11 @@ export async function deleteCustomer(id: string) {
 
   const { error } = await supabase
     .from('customers')
-    .update({ is_active: false })
+    .update({ 
+      is_active: false,
+      archive_reason: reason || null,
+      archived_at: new Date().toISOString()
+    })
     .eq('id', id)
 
   if (error) {

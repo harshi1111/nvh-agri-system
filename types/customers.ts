@@ -7,8 +7,10 @@ export interface Customer {
   gender?: string | null
   date_of_birth?: string | null
   address?: string | null
-  aadhaar_images?: string[] | null  // Add this line
+  aadhaar_images?: string[] | null
   is_active: boolean
   created_at: string
-  updated_at: string
+  updated_at?: string  // Make this optional
+  archive_reason?: string | null 
+  archived_at?: string | null
 }

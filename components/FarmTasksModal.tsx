@@ -165,7 +165,7 @@ function JournalSection({ isOpen, onClose, entries, onSave, onDelete }: {
                       className="bg-transparent text-white text-xs focus:outline-none" 
                     />
                   </div>
-                  {/* FIXED: Mood dropdown with gold theme */}
+                  {/* Mood dropdown with gold theme */}
                   <div className="flex items-center gap-2 bg-gradient-to-r from-[#D4AF37]/10 to-transparent rounded-lg px-3 py-1.5 border border-[#D4AF37]/30">
                     <span className="text-sm">😊</span>
                     <select 
@@ -1002,7 +1002,7 @@ export default function FarmTasksModal({ isOpen, onClose, customers }: FarmTasks
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5">
-            {/* Farmer Selector - FIXED: Gold theme dropdown */}
+            {/* Farmer Selector - Gold theme dropdown */}
             <div className="bg-gradient-to-r from-[#D4AF37]/5 to-transparent rounded-xl p-4 mb-6 border border-[#D4AF37]/30">
               <label className="block text-sm font-medium text-[#D4AF37] mb-2 flex items-center gap-2">
                 <Users className="w-4 h-4 text-[#D4AF37]" />
@@ -1085,11 +1085,23 @@ export default function FarmTasksModal({ isOpen, onClose, customers }: FarmTasks
   )
 }
 
-// Task Item Component
+// Task Item Component with proper types
 function TaskItem({ 
   task, plotName, dueStatus, onToggle, onEdit, onDelete, 
   isEditing, editingData, onEditingChange, onSaveEdit, onCancelEdit 
-}: any) {
+}: { 
+  task: FarmTodo
+  plotName: string
+  dueStatus: { color: string; text: string; icon: string } | null
+  onToggle: (task: FarmTodo) => void
+  onEdit: (task: FarmTodo) => void
+  onDelete: (task: FarmTodo) => void
+  isEditing: boolean
+  editingData: { taskTitle: string; taskDescription: string; taskDueDate: string; taskDueTime: string }
+  onEditingChange: (field: string, value: string) => void
+  onSaveEdit: () => void
+  onCancelEdit: () => void
+}) {
   if (isEditing) {
     return (
       <div className="bg-[#0A120A] rounded-lg p-3 border border-[#D4AF37]/30 mb-2">

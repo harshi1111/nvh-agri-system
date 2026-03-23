@@ -9,7 +9,7 @@ export default async function ArchivePage() {
     .from('customers')
     .select('*')
     .eq('is_active', false)
-    .order('archived_at', { ascending: false, nullsLast: true })
+    .order('archived_at', { ascending: false })  // Remove nullsLast, it's not supported
 
   if (error) {
     console.error('Error fetching deleted customers:', error)

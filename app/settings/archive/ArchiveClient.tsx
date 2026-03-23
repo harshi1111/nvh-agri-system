@@ -15,6 +15,27 @@ interface ArchiveClientProps {
 
 const PAGE_SIZE = 10
 
+// Helper functions
+const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+const formatDateTime = (dateString: string) => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 export default function ArchiveClient({ initialCustomers }: ArchiveClientProps) {
   const router = useRouter()
   const [restoringId, setRestoringId] = useState<string | null>(null)
@@ -22,7 +43,6 @@ export default function ArchiveClient({ initialCustomers }: ArchiveClientProps) 
   const [birdVisible, setBirdVisible] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
 
@@ -30,14 +50,16 @@ export default function ArchiveClient({ initialCustomers }: ArchiveClientProps) 
     setTimeout(() => setBirdVisible(false), 8000)
   }, [])
 
-  // Filter customers by search
+  // Filter customers by search - safe check for archive_reason
   const filteredCustomers = useMemo(() => {
-    return initialCustomers.filter(customer => 
-      customer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.contact_number.includes(searchTerm) ||
-      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.archive_reason && customer.archive_reason.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    return initialCustomers.filter(customer => {
+      const matchesName = customer.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false
+      const matchesPhone = customer.contact_number?.includes(searchTerm) || false
+      const matchesEmail = customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false
+      const matchesReason = customer.archive_reason?.toLowerCase().includes(searchTerm.toLowerCase()) || false
+      
+      return matchesName || matchesPhone || matchesEmail || matchesReason
+    })
   }, [initialCustomers, searchTerm])
 
   // Pagination
@@ -59,7 +81,8 @@ export default function ArchiveClient({ initialCustomers }: ArchiveClientProps) 
         toast.success('Customer restored successfully')
         router.refresh()
       } else {
-        toast.error('Failed to restore customer')
+        const error = await response.json()
+        toast.error(error.error || 'Failed to restore customer')
       }
     } catch (error) {
       console.error('Restore failed:', error)
@@ -85,7 +108,8 @@ export default function ArchiveClient({ initialCustomers }: ArchiveClientProps) 
         toast.success('Customer permanently deleted')
         router.refresh()
       } else {
-        toast.error('Failed to delete customer')
+        const error = await response.json()
+        toast.error(error.error || 'Failed to delete customer')
       }
     } catch (error) {
       console.error('Delete failed:', error)
@@ -93,24 +117,6 @@ export default function ArchiveClient({ initialCustomers }: ArchiveClientProps) 
     } finally {
       setDeletingId(null)
     }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    })
-  }
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
   }
 
   const handleViewDetails = (customer: Customer) => {
@@ -121,7 +127,7 @@ export default function ArchiveClient({ initialCustomers }: ArchiveClientProps) 
   return (
     <div className="min-h-screen bg-[#0A120A] relative overflow-hidden p-4 sm:p-6 animate-fade-in">
       
-      {/* Background - same as before */}
+      {/* Background */}
       <div className="absolute inset-0">
         <div className="absolute bottom-1/3 left-0 right-0 h-32 bg-gradient-to-t from-[#4A3A2A] to-transparent"></div>
         <div className="absolute bottom-1/3 left-0 right-0">

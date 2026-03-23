@@ -275,7 +275,7 @@ export default function RevenueExpenseModal({ isOpen, onClose, revenue, expenses
                             <p className="text-xs text-gray-500">No revenue transactions</p>
                           ) : (
                             <div className="space-y-2">
-                              {project.transactionTypes.map(([type, amount]) => {
+                              {project.transactionTypes.map(([type, amount]: [string, number]) => {
                                 const percentage = project.revenue > 0 ? (amount / project.revenue) * 100 : 0
                                 return (
                                   <div key={type}>

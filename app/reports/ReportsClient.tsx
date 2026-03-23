@@ -274,11 +274,11 @@ export default function ReportsClient({
               doc.setFontSize(12); doc.setTextColor(212, 175, 55)
               doc.text(project.name, 20, yPos); yPos += 6
               const transactionData = (project.transactions || []).map(t => [
-                formatDate(t.date),
-                t.type,
+                formatDate(t.date) || '-',
+                t.type || 'unknown',
                 t.description || '-',
-                t.type !== 'investment' ? `₹${formatCurrency(t.debit_amount)}` : '-',
-                t.type === 'investment' ? `₹${formatCurrency(t.credit_amount)}` : '-',
+                t.type !== 'investment' ? `₹${formatCurrency(t.debit_amount || 0)}` : '-',
+                t.type === 'investment' ? `₹${formatCurrency(t.credit_amount || 0)}` : '-',
               ])
               autoTable(doc, {
                 startY: yPos,

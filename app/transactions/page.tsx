@@ -42,14 +42,16 @@ export default async function TransactionsPage() {
   }
   
   // Calculate frequent customers based on transaction count
-  // First, get transaction counts per customer
+  // First, get transaction counts per customer from transactions table
   const { data: transactionCounts } = await supabase
     .from('transactions')
-    .select('project_id, projects!inner(customer_id)')
+    .select('projects!inner(customer_id)')
   
   const customerTransactionCount: Record<string, number> = {}
   transactionCounts?.forEach(t => {
-    const customerId = t.projects?.customer_id
+    // Access the nested data correctly
+    const projectData = t as any
+    const customerId = projectData.projects?.customer_id
     if (customerId) {
       customerTransactionCount[customerId] = (customerTransactionCount[customerId] || 0) + 1
     }
@@ -58,10 +60,11 @@ export default async function TransactionsPage() {
   // Also count plot transactions
   const { data: plotTransactionCounts } = await supabase
     .from('plot_transactions')
-    .select('plot_id, plots!inner(project_id, projects!inner(customer_id))')
+    .select('plots!inner(projects!inner(customer_id))')
   
   plotTransactionCounts?.forEach(t => {
-    const customerId = t.plots?.projects?.customer_id
+    const plotData = t as any
+    const customerId = plotData.plots?.projects?.customer_id
     if (customerId) {
       customerTransactionCount[customerId] = (customerTransactionCount[customerId] || 0) + 1
     }
