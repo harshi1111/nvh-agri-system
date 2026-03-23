@@ -11,25 +11,11 @@ export async function GET(
   const { searchParams } = new URL(request.url)
   const fromDate = searchParams.get('fromDate')
   const toDate = searchParams.get('toDate')
-  const transactionType = searchParams.get('transactionType')
+  const limit = parseInt(searchParams.get('limit') || '50') // Limit transactions per project
   
   const supabase = await createClient()
   
-  // First, get the transaction_type_id if transactionType filter is provided
-  let transactionTypeId: number | null = null
-  if (transactionType && transactionType !== 'all') {
-    const { data: typeData } = await supabase
-      .from('transaction_types')
-      .select('id')
-      .eq('name', transactionType)
-      .maybeSingle()
-    
-    if (typeData) {
-      transactionTypeId = typeData.id
-    }
-  }
-  
-  // Fetch customer with projects and filtered plots/transactions
+  // Fetch customer with projects and limited plots
   const { data: customer, error } = await supabase
     .from('customers')
     .select(`
@@ -66,16 +52,6 @@ export async function GET(
             credit_amount,
             description
           )
-        ),
-        transactions (
-          id,
-          sequence_number,
-          date,
-          transaction_type_id,
-          quantity,
-          debit_amount,
-          credit_amount,
-          description
         )
       )
     `)
@@ -87,32 +63,38 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   
-  // Helper function to filter transactions by date and type
-  const filterTransactions = (transactions: any[]) => {
+  // Helper function to filter and limit transactions
+  const filterAndLimitTransactions = (transactions: any[]) => {
     if (!transactions) return []
     
-    return transactions.filter(t => {
-      // Filter by date range
-      if (fromDate && new Date(t.date) < new Date(fromDate)) return false
-      if (toDate && new Date(t.date) > new Date(toDate)) return false
-      
-      // Filter by transaction type
-      if (transactionTypeId !== null && t.transaction_type_id !== transactionTypeId) return false
-      
-      return true
-    })
+    let filtered = transactions
+    
+    // Filter by date range
+    if (fromDate) {
+      filtered = filtered.filter(t => t.date >= fromDate)
+    }
+    if (toDate) {
+      filtered = filtered.filter(t => t.date <= toDate)
+    }
+    
+    // Sort by date descending (newest first)
+    filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    
+    // Limit to last N transactions
+    return filtered.slice(0, limit)
   }
   
-  // Transform projects with filtered transactions
+  // Transform projects with limited transactions
   const transformedCustomer = {
     ...customer,
     projects: customer?.projects?.map((project: any) => ({
       ...project,
       plots: project.plots?.map((plot: any) => ({
         ...plot,
-        plot_transactions: filterTransactions(plot.plot_transactions)
+        plot_transactions: filterAndLimitTransactions(plot.plot_transactions)
       })) || [],
-      transactions: filterTransactions(project.transactions)
+      // Also limit project-level transactions if they exist
+      transactions: filterAndLimitTransactions(project.transactions || [])
     })) || []
   }
   
