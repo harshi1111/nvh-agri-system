@@ -25,7 +25,7 @@ const idToTypeMap: Record<number, TransactionType> = {
   5: 'ploughing',
   6: 'tractor',
   7: 'dung',
-  8: 'investment'
+  8: 'investment',
   16: 'miscellaneous'
 }
 
