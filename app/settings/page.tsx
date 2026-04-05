@@ -61,7 +61,7 @@ export default function SettingsPage() {
     loadProfile()
   }, [supabase])
 
-  // Fetch data for Excel export
+  // Fetch data for Excel export with ALL transaction details
   const fetchExcelData = async () => {
     setLoadingExcel(true)
     setMessage(null)
@@ -73,11 +73,19 @@ export default function SettingsPage() {
         .select(`
           *,
           plot:plot_id (
+            id,
+            plot_number,
+            acre_number,
             name,
+            project_id,
             project:project_id (
+              id,
               name,
+              customer_id,
               customer:customer_id (
-                full_name
+                id,
+                full_name,
+                contact_number
               )
             )
           )
@@ -101,18 +109,43 @@ export default function SettingsPage() {
         return
       }
 
-      const formattedData = data?.map((item: any) => ({
-        'Date': item.date || 'N/A',
-        'Customer': item.plot?.project?.customer?.full_name || 'N/A',
-        'Project': item.plot?.project?.name || 'N/A',
-        'Plot': item.plot?.name || 'N/A',
-        'Description': item.description || '-',
-        'Debit (₹)': item.debit_amount || 0,
-        'Credit (₹)': item.credit_amount || 0,
-        'Serial No': item.sequence_number || 'N/A',
-      })) || []
+      // Map transaction type ID to name
+      const idToTypeMap: Record<number, string> = {
+        1: 'labour',
+        2: 'sprinkler',
+        3: 'transport',
+        4: 'food',
+        5: 'ploughing',
+        6: 'tractor',
+        7: 'dung',
+        8: 'investment',
+        16: 'miscellaneous'
+      }
+
+      const formattedData = data?.map((item: any) => {
+        const plotData = item.plot as any
+        const projectData = plotData?.project as any
+        const customerData = projectData?.customer as any
+        
+        return {
+          'Serial No': item.sequence_number || 'N/A',
+          'Date': item.date || 'N/A',
+          'Customer Name': customerData?.full_name || 'N/A',
+          'Customer Phone': customerData?.contact_number || 'N/A',
+          'Project Name': projectData?.name || 'N/A',
+          'Plot Name': plotData?.name || plotData?.plot_number || plotData?.acre_number || 'N/A',
+          'Transaction Type': idToTypeMap[item.transaction_type_id] || 'unknown',
+          'Description': item.description || '-',
+          'Count': item.quantity || '-',
+          'Unit': item.unit || '-',
+          'Debit Amount (₹)': item.debit_amount || 0,
+          'Credit Amount (₹)': item.credit_amount || 0,
+          'Created At': item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A',
+        }
+      }) || []
 
       console.log("Formatted data count:", formattedData.length)
+      console.log("Sample first row:", formattedData[0])
       setExcelData(formattedData)
       setMessage({ type: 'success', text: `${formattedData.length} transactions ready to export` })
       
@@ -442,7 +475,7 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="p-4 pt-2">
               <p className="text-xs text-gray-400 mb-3">
-                Download all transactions as Excel/CSV file.
+                Download all transactions with complete details.
               </p>
               {loadingExcel ? (
                 <div className="text-center text-gray-400 text-xs py-2">Loading data...</div>
