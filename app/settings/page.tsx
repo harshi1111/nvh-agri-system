@@ -14,11 +14,14 @@ import {
   CheckCircle,
   Archive,
   ArrowRight,
-  Settings
+  Settings,
+  FileSpreadsheet  // ← ADD THIS import
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+// ← ADD THIS import for Excel export
+import ExportToExcelButton from '@/components/ExportToExcelButton'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -28,6 +31,8 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [user, setUser] = useState<any>(null)
   const [birdVisible, setBirdVisible] = useState(true)
+  const [excelData, setExcelData] = useState([])  // ← ADD this state
+  const [loadingExcel, setLoadingExcel] = useState(false)  // ← ADD this state
   
   const [profile, setProfile] = useState({
     full_name: '',
@@ -58,6 +63,52 @@ export default function SettingsPage() {
     }
     loadProfile()
   }, [supabase])
+
+  // ← ADD this function to fetch data for Excel
+  const fetchExcelData = async () => {
+    setLoadingExcel(true)
+    try {
+      const { data, error } = await supabase
+        .from('plot_transactions')
+        .select(`
+          *,
+          plot:plot_id (
+            name,
+            project:project_id (
+              name,
+              customer:customer_id (
+                full_name
+              )
+            )
+          )
+        `)
+        .order('date', { ascending: false })
+
+      if (error) throw error
+
+      const formattedData = data?.map((item: any) => ({
+        'Date': item.date,
+        'Customer': item.plot?.project?.customer?.full_name || 'N/A',
+        'Project': item.plot?.project?.name || 'N/A',
+        'Plot': item.plot?.name || 'N/A',
+        'Description': item.description || '-',
+        'Debit (₹)': item.debit_amount || 0,
+        'Credit (₹)': item.credit_amount || 0,
+        'Serial No': item.sequence_number,
+      })) || []
+
+      setExcelData(formattedData)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoadingExcel(false)
+    }
+  }
+
+  // Load Excel data when component mounts
+  useEffect(() => {
+    fetchExcelData()
+  }, [])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -333,9 +384,9 @@ export default function SettingsPage() {
           </Card>
         </div>
 
-        {/* Bottom row: Backup (card) & Archive (unique element) side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Backup Card (no safety tips) */}
+        {/* Bottom row: 3 items - Backup, Excel Export, Archive */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Backup Card */}
           <Card className="bg-black/40 backdrop-blur-sm border border-[#D4AF37]/30 rounded-xl overflow-hidden transition-all hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-white text-sm flex items-center gap-2">
@@ -362,7 +413,31 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Archive – unique element (no card) */}
+          {/* NEW - Excel Export Card */}
+          <Card className="bg-black/40 backdrop-blur-sm border border-[#D4AF37]/30 rounded-xl overflow-hidden transition-all hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-[#D4AF37]" />
+                Excel Export
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-2">
+              <p className="text-xs text-gray-400 mb-3">
+                Download all transactions as Excel/CSV file.
+              </p>
+              {loadingExcel ? (
+                <div className="text-center text-gray-400 text-xs py-2">Loading data...</div>
+              ) : (
+                <ExportToExcelButton 
+                  data={excelData} 
+                  fileName={`nvh_transactions_${new Date().toISOString().slice(0,10)}`}
+                  buttonText="📊 Download Excel (.csv)"
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Archive Card */}
           <div 
             className="group relative bg-gradient-to-br from-[#D4AF37]/5 to-transparent border-2 border-[#D4AF37]/30 rounded-xl p-4 cursor-pointer hover:border-[#D4AF37] hover:shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-all overflow-hidden"
             onClick={() => router.push('/settings/archive')}
