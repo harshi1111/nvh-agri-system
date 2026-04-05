@@ -224,7 +224,8 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   const balance = totalCredit - totalDebit
 
   // Helper to get date parts
-  const getDateParts = (dateStr: string) => {
+  const getDateParts = (dateStr: string | undefined) => {
+    if (!dateStr) return { day: '', month: '', year: '' }
     const parts = dateStr.split('-')
     return {
       day: parts[0] || '',
