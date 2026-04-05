@@ -15,12 +15,11 @@ import {
   Archive,
   ArrowRight,
   Settings,
-  FileSpreadsheet  // ← ADD THIS import
+  FileSpreadsheet
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-// ← ADD THIS import for Excel export
 import ExportToExcelButton from '@/components/ExportToExcelButton'
 
 export default function SettingsPage() {
@@ -31,8 +30,8 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [user, setUser] = useState<any>(null)
   const [birdVisible, setBirdVisible] = useState(true)
-  const [excelData, setExcelData] = useState([])  // ← ADD this state
-  const [loadingExcel, setLoadingExcel] = useState(false)  // ← ADD this state
+  const [excelData, setExcelData] = useState([])
+  const [loadingExcel, setLoadingExcel] = useState(false)
   
   const [profile, setProfile] = useState({
     full_name: '',
@@ -44,12 +43,10 @@ export default function SettingsPage() {
     confirm: ''
   })
 
-  // Bird disappears after flying across
   useEffect(() => {
     setTimeout(() => setBirdVisible(false), 8000)
   }, [])
 
-  // Load user profile on mount
   useEffect(() => {
     const loadProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -64,11 +61,14 @@ export default function SettingsPage() {
     loadProfile()
   }, [supabase])
 
-  // ← ADD this function to fetch data for Excel
+  // Fetch data for Excel export
   const fetchExcelData = async () => {
     setLoadingExcel(true)
+    setMessage(null)
     try {
-      const { data, error } = await supabase
+      console.log("Starting Excel data fetch...")
+      
+      const { data, error, status } = await supabase
         .from('plot_transactions')
         .select(`
           *,
@@ -84,22 +84,41 @@ export default function SettingsPage() {
         `)
         .order('date', { ascending: false })
 
-      if (error) throw error
+      console.log("Supabase response status:", status)
+      console.log("Raw data count:", data?.length)
+
+      if (error) {
+        console.error("Supabase error:", error)
+        setMessage({ type: 'error', text: `Database error: ${error.message}` })
+        setExcelData([])
+        return
+      }
+
+      if (!data || data.length === 0) {
+        console.log("No transactions found in plot_transactions table")
+        setMessage({ type: 'error', text: 'No transactions found to export. Add some transactions first.' })
+        setExcelData([])
+        return
+      }
 
       const formattedData = data?.map((item: any) => ({
-        'Date': item.date,
+        'Date': item.date || 'N/A',
         'Customer': item.plot?.project?.customer?.full_name || 'N/A',
         'Project': item.plot?.project?.name || 'N/A',
         'Plot': item.plot?.name || 'N/A',
         'Description': item.description || '-',
         'Debit (₹)': item.debit_amount || 0,
         'Credit (₹)': item.credit_amount || 0,
-        'Serial No': item.sequence_number,
+        'Serial No': item.sequence_number || 'N/A',
       })) || []
 
+      console.log("Formatted data count:", formattedData.length)
       setExcelData(formattedData)
+      setMessage({ type: 'success', text: `${formattedData.length} transactions ready to export` })
+      
     } catch (error) {
       console.error('Error fetching data:', error)
+      setMessage({ type: 'error', text: 'Failed to load data for export' })
     } finally {
       setLoadingExcel(false)
     }
@@ -184,7 +203,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-[#0A120A] relative overflow-hidden p-4 sm:p-6 animate-fade-in">
       
-      {/* ========== DASHBOARD BACKGROUND ========== */}
+      {/* Background */}
       <div className="absolute inset-0">
         <div className="absolute bottom-1/3 left-0 right-0 h-32 bg-gradient-to-t from-[#1A2A1A] to-transparent"></div>
         
@@ -248,7 +267,7 @@ export default function SettingsPage() {
         <div className="fixed top-1/4 left-0 z-50 pointer-events-none animate-bird-fly">
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
             <path 
-              d="M10 14 C 14 12, 18 12, 22 14 C 20 18, 16 20, 12 18 C 10 16, 10 14, 10 14" 
+              d="M10 14 C 14 12, 18 12, 22 14 C 18 20, 16 20, 12 18 C 10 16, 10 14, 10 14" 
               fill="#1A2A1A" 
               stroke="#D4AF37" 
               strokeWidth="1.5"
@@ -268,7 +287,7 @@ export default function SettingsPage() {
       {/* MAIN CONTENT */}
       <div className="relative z-10 max-w-5xl mx-auto space-y-4">
         
-        {/* Header with icon */}
+        {/* Header */}
         <div className="flex items-center gap-2 mb-2">
           <Settings className="w-5 h-5 text-[#D4AF37]" />
           <h1 className="text-2xl font-bold text-white">Settings</h1>
@@ -290,7 +309,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Top row: Profile & Password side by side */}
+        {/* Profile & Password */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Profile Card */}
           <Card className="bg-black/40 backdrop-blur-sm border border-[#D4AF37]/30 rounded-xl overflow-hidden transition-all hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]">
@@ -384,7 +403,7 @@ export default function SettingsPage() {
           </Card>
         </div>
 
-        {/* Bottom row: 3 items - Backup, Excel Export, Archive */}
+        {/* Bottom row: Backup, Excel Export, Archive */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Backup Card */}
           <Card className="bg-black/40 backdrop-blur-sm border border-[#D4AF37]/30 rounded-xl overflow-hidden transition-all hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]">
@@ -413,7 +432,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* NEW - Excel Export Card */}
+          {/* Excel Export Card */}
           <Card className="bg-black/40 backdrop-blur-sm border border-[#D4AF37]/30 rounded-xl overflow-hidden transition-all hover:border-[#D4AF37] hover:shadow-[0_0_15px_rgba(212,175,55,0.3)]">
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-white text-sm flex items-center gap-2">
@@ -431,7 +450,7 @@ export default function SettingsPage() {
                 <ExportToExcelButton 
                   data={excelData} 
                   fileName={`nvh_transactions_${new Date().toISOString().slice(0,10)}`}
-                  buttonText="📊 Download Excel (.csv)"
+                  buttonText={`📊 Download Excel (.csv) ${excelData.length > 0 ? `(${excelData.length})` : ''}`}
                 />
               )}
             </CardContent>
