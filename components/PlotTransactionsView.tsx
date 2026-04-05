@@ -308,7 +308,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                   <div className="relative">
                     <input
                       ref={dateInputRef}
-                      type="date"
+                      type="text"
                       value={editingTransaction?.date || newTransaction.date}
                       onChange={(e) => handleDateChange(e.target.value, !!editingTransaction)}
           
