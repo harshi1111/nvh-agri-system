@@ -223,6 +223,16 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   const totalCredit = transactions.filter(t => t.type === 'investment').reduce((s, t) => s + t.amount, 0)
   const balance = totalCredit - totalDebit
 
+  // Helper to get date parts
+  const getDateParts = (dateStr: string) => {
+    const parts = dateStr.split('-')
+    return {
+      day: parts[0] || '',
+      month: parts[1] || '',
+      year: parts[2] || ''
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onClick={onClose}>
       <div
@@ -287,23 +297,57 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-400">Date</label>
-                  <div className="relative">
+                  <div className="flex gap-2 items-center">
                     <input
-                      ref={dateInputRef}
                       type="text"
-                      value={editingTransaction?.date || newTransaction.date}
-                      onChange={(e) => handleDateChange(e.target.value, !!editingTransaction)}
-                      placeholder="DD-MM-YYYY"
-                      className={`w-full bg-black/50 border rounded-lg px-3 py-2 text-white text-sm pr-10 ${
-                        dateError ? 'border-red-500/50 focus:border-red-500' : 'border-[#D4AF37]/30 focus:border-[#D4AF37]'
-                      }`}
+                      maxLength={2}
+                      placeholder="DD"
+                      value={getDateParts(editingTransaction?.date || newTransaction.date).day}
+                      onChange={(e) => {
+                        let day = e.target.value.replace(/[^0-9]/g, '').slice(0, 2)
+                        let month = getDateParts(editingTransaction?.date || newTransaction.date).month
+                        let year = getDateParts(editingTransaction?.date || newTransaction.date).year
+                        const newDate = `${day}${month ? `-${month}` : ''}${year ? `-${year}` : ''}`
+                        handleDateChange(newDate, !!editingTransaction)
+                      }}
+                      className="w-20 bg-black/50 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-white text-sm text-center"
+                    />
+                    <span className="text-[#D4AF37] text-xl font-bold">-</span>
+                    <input
+                      type="text"
+                      maxLength={2}
+                      placeholder="MM"
+                      value={getDateParts(editingTransaction?.date || newTransaction.date).month}
+                      onChange={(e) => {
+                        let day = getDateParts(editingTransaction?.date || newTransaction.date).day
+                        let month = e.target.value.replace(/[^0-9]/g, '').slice(0, 2)
+                        let year = getDateParts(editingTransaction?.date || newTransaction.date).year
+                        const newDate = `${day}${day ? '-' : ''}${month}${year ? `-${year}` : ''}`
+                        handleDateChange(newDate, !!editingTransaction)
+                      }}
+                      className="w-20 bg-black/50 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-white text-sm text-center"
+                    />
+                    <span className="text-[#D4AF37] text-xl font-bold">-</span>
+                    <input
+                      type="text"
+                      maxLength={4}
+                      placeholder="YYYY"
+                      value={getDateParts(editingTransaction?.date || newTransaction.date).year}
+                      onChange={(e) => {
+                        let day = getDateParts(editingTransaction?.date || newTransaction.date).day
+                        let month = getDateParts(editingTransaction?.date || newTransaction.date).month
+                        let year = e.target.value.replace(/[^0-9]/g, '').slice(0, 4)
+                        const newDate = `${day}${day ? '-' : ''}${month}${month ? '-' : ''}${year}`
+                        handleDateChange(newDate, !!editingTransaction)
+                      }}
+                      className="w-28 bg-black/50 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-white text-sm text-center"
                     />
                     <button
                       type="button"
                       onClick={openDatePicker}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-[#D4AF37]/20 rounded-lg transition-colors"
+                      className="p-2 hover:bg-[#D4AF37]/20 rounded-lg transition-colors"
                     >
-                      <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                      <Calendar className="w-5 h-5 text-[#D4AF37]" />
                     </button>
                   </div>
                 </div>
@@ -399,7 +443,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                     <th className="text-right py-2 px-3">Debit (₹)</th>
                     <th className="text-right py-2 px-3">Credit (₹)</th>
                     <th className="text-center py-2 px-3">Actions</th>
-                  </table>
+                  </tr>
                 </thead>
                 <tbody>
                   {transactions.map((t) => (
