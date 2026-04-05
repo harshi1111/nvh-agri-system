@@ -40,7 +40,7 @@ const transactionTypes = [
   { id: 'dung', label: 'Cow Dung', icon: Droplets, placeholder: 'e.g., Organic manure' },
   { id: 'sprinkler', label: 'Sprinkler', icon: Sprout, placeholder: 'e.g., 10 units' },
   { id: 'investment', label: 'Investment', icon: Wallet, placeholder: 'e.g., Capital' },
-  { id: 'Miscellaneous', label: 'Other', icon: FileText, placeholder: 'e.g., others' },
+  { id: 'Miscellaneous', label: 'Miscellaneous', icon: FileText, placeholder: 'e.g., others' },
 ]
 
 export default function PlotTransactionsView({ isOpen, onClose, plot, onTransactionUpdate }: PlotTransactionsViewProps) {
