@@ -14,9 +14,11 @@ const ExportToExcelButton: React.FC<ExportButtonProps> = ({
   buttonText = 'Export to Excel'
 }) => {
   const handleExport = () => {
+    console.log("Export button clicked. Data length:", data.length)
+    
     if (!data || data.length === 0) {
-      alert("No data available to export.");
-      return;
+      alert("No data available to export. Please add some transactions first.")
+      return
     }
 
     // Convert data to CSV format
@@ -29,9 +31,14 @@ const ExportToExcelButton: React.FC<ExportButtonProps> = ({
     // Add data rows
     for (const row of data) {
       const values = headers.map(header => {
-        const value = row[header] || '';
-        // Wrap in quotes if contains comma
-        return typeof value === 'string' && value.includes(',') ? `"${value}"` : value;
+        let value = row[header];
+        if (value === undefined || value === null) value = '';
+        // Wrap in quotes if contains comma or newline
+        const stringValue = String(value);
+        if (stringValue.includes(',') || stringValue.includes('\n')) {
+          return `"${stringValue}"`;
+        }
+        return stringValue;
       });
       csvRows.push(values.join(','));
     }
@@ -49,6 +56,8 @@ const ExportToExcelButton: React.FC<ExportButtonProps> = ({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    
+    alert(`Exported ${data.length} transactions successfully!`);
   };
 
   return (
@@ -56,7 +65,7 @@ const ExportToExcelButton: React.FC<ExportButtonProps> = ({
       onClick={handleExport}
       className="w-full bg-green-600 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-green-700 transition flex items-center justify-center gap-2"
     >
-      📊 {buttonText}
+      📊 {buttonText} {data.length > 0 && `(${data.length})`}
     </button>
   );
 };
