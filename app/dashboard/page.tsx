@@ -86,7 +86,8 @@ export default async function DashboardPage() {
     5: 'ploughing',
     6: 'tractor',
     7: 'dung',
-    8: 'investment'
+    8: 'investment',
+    16: 'miscellaneous'
   }
 
   // Transform plot transactions
