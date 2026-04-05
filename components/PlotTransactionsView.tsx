@@ -113,8 +113,13 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
     setIsLoading(true)
     setDateError(null)
     try {
+      let formattedDate = newTransaction.date
+      const parts = formattedDate.split('-')
+      if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+      formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+      }
       const result = await createPlotTransaction(plot.id, {
-        date: newTransaction.date,
+        date: formattedDate,
         type: newTransaction.type as any,
         amount,
         description: newTransaction.description || '',
@@ -151,8 +156,13 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
     setIsLoading(true)
     setDateError(null)
     try {
+      let formattedDate = editingTransaction.date
+      const parts = formattedDate.split('-')
+      if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+      formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+      }
       const result = await updatePlotTransaction(editingTransaction.id, {
-        date: editingTransaction.date,
+        date: formattedDate,
         type: editingTransaction.type,
         amount: editingTransaction.amount,
         description: editingTransaction.description,
@@ -391,7 +401,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                     type="text"
                     value={editingTransaction?.amount ?? newTransaction.amount ?? ''}
                     onChange={(e) => {
-                      const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                      const val = e.target.value === '' ? undefined : Number(e.target.value)
                       if (editingTransaction) {
                         setEditingTransaction({ ...editingTransaction, amount: val !== undefined ? val : 0 })
                       } else {
