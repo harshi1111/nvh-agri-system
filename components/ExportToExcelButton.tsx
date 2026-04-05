@@ -14,11 +14,9 @@ const ExportToExcelButton: React.FC<ExportButtonProps> = ({
   buttonText = 'Export to Excel'
 }) => {
   const handleExport = () => {
-    console.log("Export button clicked. Data length:", data.length)
-    
     if (!data || data.length === 0) {
-      alert("No data available to export. Please add some transactions first.")
-      return
+      alert("No data available to export.");
+      return;
     }
 
     // Convert data to CSV format
