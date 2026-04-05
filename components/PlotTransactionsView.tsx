@@ -222,7 +222,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       tractor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
       dung: 'bg-amber-700/20 text-amber-600 border-amber-700/30',
       sprinkler: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      investment: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+      investment: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
       miscellaneous: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
     }
     return colors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'
