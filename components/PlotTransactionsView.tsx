@@ -83,16 +83,11 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   }
 
   const validateDate = (dateString: string): boolean => {
-    
     return true
   }
 
   const handleDateChange = (date: string, isEditing: boolean) => {
     setDateError(null)
-    if (!validateDate(date)) {
-      setDateError('Please enter a valid date (YYYY-MM-DD) with a 4-digit year between 1900 and current year + 10')
-      return
-    }
     if (isEditing && editingTransaction) {
       setEditingTransaction({ ...editingTransaction, date })
     } else {
@@ -109,13 +104,11 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   const handleAddTransaction = async () => {
     if (!newTransaction.type || !newTransaction.date) return
     
-    
-
     if (newTransaction.amount === undefined || newTransaction.amount === null) {
-    setDateError('Please enter an amount')
-    return
+      setDateError('Please enter an amount')
+      return
     }
-    const amount = newTransaction.amount ?? 0
+    const amount = newTransaction.amount
 
     setIsLoading(true)
     setDateError(null)
@@ -150,6 +143,10 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   const handleUpdateTransaction = async () => {
     if (!editingTransaction) return
     
+    if (editingTransaction.amount === undefined || editingTransaction.amount === null) {
+      setDateError('Please enter an amount')
+      return
+    }
 
     setIsLoading(true)
     setDateError(null)
@@ -296,8 +293,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                       type="text"
                       value={editingTransaction?.date || newTransaction.date}
                       onChange={(e) => handleDateChange(e.target.value, !!editingTransaction)}
-          
-                      placeholder="YYYY-MM-DD"
+                      placeholder="DD-MM-YYYY"
                       className={`w-full bg-black/50 border rounded-lg px-3 py-2 text-white text-sm pr-10 ${
                         dateError ? 'border-red-500/50 focus:border-red-500' : 'border-[#D4AF37]/30 focus:border-[#D4AF37]'
                       }`}
@@ -347,7 +343,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                 <div>
                   <label className="text-xs text-gray-400">Amount (₹)</label>
                   <input
-                    type="number"
+                    type="text"
                     value={editingTransaction?.amount ?? newTransaction.amount ?? ''}
                     onChange={(e) => {
                       const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
@@ -357,9 +353,8 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                         setNewTransaction({ ...newTransaction, amount: val })
                       }
                     }}
-                    step="any"
                     className="w-full bg-black/50 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-white text-sm"
-                    placeholder="Enter amount"
+                    placeholder="Enter amount (e.g., 500 or 500.50)"
                   />
                 </div>
                 <div className="col-span-2">
@@ -404,7 +399,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                     <th className="text-right py-2 px-3">Debit (₹)</th>
                     <th className="text-right py-2 px-3">Credit (₹)</th>
                     <th className="text-center py-2 px-3">Actions</th>
-                  </tr>
+                  </table>
                 </thead>
                 <tbody>
                   {transactions.map((t) => (
