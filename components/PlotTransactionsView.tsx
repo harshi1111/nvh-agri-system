@@ -304,7 +304,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                       type="date"
                       value={editingTransaction?.date || newTransaction.date}
                       onChange={(e) => handleDateChange(e.target.value, !!editingTransaction)}
-                      pattern="\d{4}-\d{2}-\d{2}"
+          
                       placeholder="YYYY-MM-DD"
                       className={`w-full bg-black/50 border rounded-lg px-3 py-2 text-white text-sm pr-10 ${
                         dateError ? 'border-red-500/50 focus:border-red-500' : 'border-[#D4AF37]/30 focus:border-[#D4AF37]'
