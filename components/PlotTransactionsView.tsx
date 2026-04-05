@@ -80,12 +80,21 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
     }
   }
 
+  // ✅ CHANGE 1: Updated validateDate function (lines 71-81 replaced)
   const validateDate = (dateString: string): boolean => {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (!dateRegex.test(dateString)) return false
-    const year = parseInt(dateString.split('-')[0])
+    // If empty, invalid
+    if (!dateString) return false
+    
+    // Try to create a date object
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return false
+    
+    const year = date.getFullYear()
     const currentYear = new Date().getFullYear()
+    
+    // Check year range
     if (year < 1900 || year > currentYear + 10) return false
+    
     return true
   }
 
@@ -292,10 +301,13 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-400">Date</label>
+                  {/* ✅ CHANGE 2: Added pattern and placeholder to date input (around line 149) */}
                   <input
                     type="date"
                     value={editingTransaction?.date || newTransaction.date}
                     onChange={(e) => handleDateChange(e.target.value, !!editingTransaction)}
+                    pattern="\d{4}-\d{2}-\d{2}"
+                    placeholder="YYYY-MM-DD"
                     className={`w-full bg-black/50 border rounded-lg px-3 py-2 text-white text-sm ${
                       dateError ? 'border-red-500/50 focus:border-red-500' : 'border-[#D4AF37]/30 focus:border-[#D4AF37]'
                     }`}
@@ -393,7 +405,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                     <th className="text-right py-2 px-3">Debit (₹)</th>
                     <th className="text-right py-2 px-3">Credit (₹)</th>
                     <th className="text-center py-2 px-3">Actions</th>
-                   </tr>
+                  </tr>
                 </thead>
                 <tbody>
                   {transactions.map((t) => (
