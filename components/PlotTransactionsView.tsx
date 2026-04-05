@@ -451,7 +451,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((t) => (
+                  {[...transactions].reverse().map((t) => (
                     <tr key={t.id} className="border-t border-[#D4AF37]/10 hover:bg-[#D4AF37]/5">
                       <td className="py-2 px-3 text-white font-mono">{t.serial_no}</td>
                       <td className="py-2 px-3 text-gray-300">{new Date(t.date).toLocaleDateString()}</td>
