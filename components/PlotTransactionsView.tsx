@@ -125,7 +125,11 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       setDateError('Please enter a valid date with a 4-digit year')
       return
     }
-    
+
+    if (newTransaction.amount === undefined || newTransaction.amount === null) {
+    setDateError('Please enter an amount')
+    return
+    }
     const amount = newTransaction.amount ?? 0
 
     setIsLoading(true)
@@ -367,11 +371,12 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                     onChange={(e) => {
                       const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
                       if (editingTransaction) {
-                        setEditingTransaction({ ...editingTransaction, amount: val === undefined ? 0 : val })
+                        setEditingTransaction({ ...editingTransaction, amount: val })
                       } else {
                         setNewTransaction({ ...newTransaction, amount: val })
                       }
                     }}
+                    step="any"
                     className="w-full bg-black/50 border border-[#D4AF37]/30 rounded-lg px-3 py-2 text-white text-sm"
                     placeholder="Enter amount"
                   />
