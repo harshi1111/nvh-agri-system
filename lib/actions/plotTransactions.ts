@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export type TransactionType = "labour" | "sprinkler" | "transport" | "food" | "ploughing" | "tractor" | "dung" | "investment" | 'miscellaneous';
+export type TransactionType = "labour" | "sprinkler" | "transport" | "food" | "ploughing" | "tractor" | "dung" | "investment" | "miscellaneous";
 
 const typeToIdMap: Record<TransactionType, number> = {
   'labour': 1,
