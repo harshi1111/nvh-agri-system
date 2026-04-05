@@ -13,7 +13,8 @@ const typeToIdMap: Record<TransactionType, number> = {
   'ploughing': 5,
   'tractor': 6,
   'dung': 7,
-  'investment': 8
+  'investment': 8,
+  'miscellaneous': 16, 
 }
 
 const idToTypeMap: Record<number, TransactionType> = {
