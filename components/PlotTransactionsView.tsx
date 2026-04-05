@@ -109,10 +109,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   const handleAddTransaction = async () => {
     if (!newTransaction.type || !newTransaction.date) return
     
-    if (!validateDate(newTransaction.date)) {
-      setDateError('Please enter a valid date with a 4-digit year')
-      return
-    }
+    
 
     if (newTransaction.amount === undefined || newTransaction.amount === null) {
     setDateError('Please enter an amount')
@@ -153,10 +150,6 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   const handleUpdateTransaction = async () => {
     if (!editingTransaction) return
     
-    if (!validateDate(editingTransaction.date)) {
-      setDateError('Please enter a valid date with a 4-digit year')
-      return
-    }
 
     setIsLoading(true)
     setDateError(null)
