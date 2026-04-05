@@ -26,6 +26,7 @@ const idToTypeMap: Record<number, TransactionType> = {
   6: 'tractor',
   7: 'dung',
   8: 'investment'
+  16: 'miscellaneous'
 }
 
 export async function createPlotTransaction(plotId: string, data: {
