@@ -371,7 +371,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
                     onChange={(e) => {
                       const val = e.target.value === '' ? undefined : parseFloat(e.target.value)
                       if (editingTransaction) {
-                        setEditingTransaction({ ...editingTransaction, amount: val })
+                        setEditingTransaction({ ...editingTransaction, amount: val !== undefined ? val : 0 })
                       } else {
                         setNewTransaction({ ...newTransaction, amount: val })
                       }
