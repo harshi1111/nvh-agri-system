@@ -49,6 +49,19 @@ import {
 interface DashboardClientProps {
   customers: any[]
   recentTransactions: any[]
+  dashboardStats: {
+    totalCustomers: number
+    activeProjects: number
+    totalProjects: number
+    netBalance: number
+    totalDebit: number
+    totalCredit: number
+    totalTransactions: number
+    availableCash: number
+    monthlyVolume: number
+  }
+  debitTrend: number[]
+  creditTrend: number[]
 }
 
 // Spinning number component
@@ -585,7 +598,7 @@ function JournalModal({ isOpen, onClose, entries, onSave, onDelete }: {
   )
 }
 
-export default function DashboardClient({ customers, recentTransactions }: DashboardClientProps) {
+export default function DashboardClient({ customers, recentTransactions, dashboardStats, debitTrend, creditTrend }: DashboardClientProps) {
   const router = useRouter()
   const [greeting, setGreeting] = useState('')
   const [currentDate, setCurrentDate] = useState('')
@@ -613,9 +626,24 @@ export default function DashboardClient({ customers, recentTransactions }: Dashb
     { id: 2, date: new Date(Date.now() - 86400000).toISOString().split('T')[0], title: 'Meeting with Nakamoto', content: 'Had a great discussion about the upcoming harvest.', mood: '🌾 Grateful', createdAt: new Date(Date.now() - 86400000).toISOString() }
   ])
 
-  const creditTrend = useMemo(() => [12500, 13200, 12800, 14500, 14200, 15800, 16200], [])
-  const debitTrend = useMemo(() => [9800, 10200, 9900, 10800, 11200, 10500, 11800], [])
-  const monthlyGrowth = useMemo(() => ({ value: 8.5, isPositive: true, label: "Since last month" }), [])
+  // Use the passed trends instead of static data
+  const creditTrendData = creditTrend.length > 0 ? creditTrend : [12500, 13200, 12800, 14500, 14200, 15800, 16200]
+  const debitTrendData = debitTrend.length > 0 ? debitTrend : [9800, 10200, 9900, 10800, 11200, 10500, 11800]
+  
+  // Calculate monthly growth percentage from actual data
+  const monthlyGrowthValue = useMemo(() => {
+    if (creditTrendData.length >= 2) {
+      const oldest = creditTrendData[0] || 0
+      const newest = creditTrendData[creditTrendData.length - 1] || 0
+      if (oldest > 0) {
+        const growth = ((newest - oldest) / oldest) * 100
+        return { value: Math.abs(Math.round(growth * 10) / 10), isPositive: growth >= 0, label: "Since last month" }
+      }
+    }
+    return { value: 8.5, isPositive: true, label: "Since last month" }
+  }, [creditTrendData])
+
+  const monthlyGrowth = monthlyGrowthValue
 
   useEffect(() => {
     const interval = setInterval(() => { setHighlightedCard((prev) => (prev + 1) % 4); setPulsePercentage(true); setTimeout(() => setPulsePercentage(false), 400); }, 2000)
@@ -640,21 +668,8 @@ export default function DashboardClient({ customers, recentTransactions }: Dashb
     return () => clearInterval(quoteInterval)
   }, [])
 
-  const stats = useMemo(() => {
-    let totalProjects = 0, activeProjects = 0, totalDebit = 0, totalCredit = 0, totalTransactions = 0
-    customers.forEach(customer => {
-      totalProjects += customer.projects?.length || 0
-      customer.projects?.forEach((project: any) => {
-        if (project.status === 'active') activeProjects++
-        project.transactions?.forEach((t: any) => {
-          totalDebit += t.debit_amount || 0
-          totalCredit += t.credit_amount || 0
-          totalTransactions++
-        })
-      })
-    })
-    return { totalCustomers: customers.length, activeProjects, totalProjects, netBalance: totalCredit - totalDebit, totalDebit, totalCredit, totalTransactions, availableCash: (totalCredit - totalDebit) * 0.6, monthlyVolume: totalCredit + totalDebit }
-  }, [customers])
+  // Use passed dashboardStats instead of calculating
+  const stats = dashboardStats
 
   const handleGreetingClick = () => setGreetingBorderColor((prev) => (prev + 1) % borderColors.length)
   const handleSaveJournalEntry = (entry: JournalEntry) => setJournalEntries(prev => { const existing = prev.find(e => e.id === entry.id); return existing ? prev.map(e => e.id === entry.id ? entry : e) : [...prev, entry] })
@@ -666,8 +681,8 @@ export default function DashboardClient({ customers, recentTransactions }: Dashb
 
   const statCards = [
     { label: 'Available Cash', value: stats.availableCash, icon: <Wallet className="w-4 h-4" />, color: '#7AA65A', prefix: '₹', change: true, percentage: monthlyGrowth.value, isPositive: monthlyGrowth.isPositive, timeLabel: monthlyGrowth.label },
-    { label: 'Total Debit', value: stats.totalDebit, icon: <TrendingDown className="w-4 h-4" />, color: '#B85C3A', prefix: '₹', sparkline: debitTrend, timeLabel: 'Last 7 days' },
-    { label: 'Total Credit', value: stats.totalCredit, icon: <TrendingUp className="w-4 h-4" />, color: '#7AA65A', prefix: '₹', sparkline: creditTrend, timeLabel: 'Last 7 days' },
+    { label: 'Total Debit', value: stats.totalDebit, icon: <TrendingDown className="w-4 h-4" />, color: '#B85C3A', prefix: '₹', sparkline: debitTrendData, timeLabel: 'Last 7 days' },
+    { label: 'Total Credit', value: stats.totalCredit, icon: <TrendingUp className="w-4 h-4" />, color: '#7AA65A', prefix: '₹', sparkline: creditTrendData, timeLabel: 'Last 7 days' },
     { label: 'Transactions', value: stats.totalTransactions, icon: <BarChart3 className="w-4 h-4" />, color: '#AD8B6D', suffix: ' txns', noPrefix: true, timeLabel: 'This month' },
   ]
 
