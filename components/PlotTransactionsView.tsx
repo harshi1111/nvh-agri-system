@@ -18,7 +18,7 @@ interface Transaction {
   id: string
   serial_no: number
   date: string
-  type: 'labour' | 'sprinkler' | 'transport' | 'food' | 'ploughing' | 'tractor' | 'dung' | 'investment'
+  type: 'labour' | 'sprinkler' | 'transport' | 'food' | 'ploughing' | 'tractor' | 'dung' | 'investment' | 'miscellaneous'
   count?: number | null
   amount: number
   description: string
@@ -40,7 +40,7 @@ const transactionTypes = [
   { id: 'dung', label: 'Cow Dung', icon: Droplets, placeholder: 'e.g., Organic manure' },
   { id: 'sprinkler', label: 'Sprinkler', icon: Sprout, placeholder: 'e.g., 10 units' },
   { id: 'investment', label: 'Investment', icon: Wallet, placeholder: 'e.g., Capital' },
-  { id: 'Miscellaneous', label: 'Miscellaneous', icon: FileText, placeholder: 'e.g., others' },
+  { id: 'miscellaneous', label: 'Miscellaneous', icon: FileText, placeholder: 'e.g., others' },
 ]
 
 export default function PlotTransactionsView({ isOpen, onClose, plot, onTransactionUpdate }: PlotTransactionsViewProps) {
@@ -223,6 +223,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       dung: 'bg-amber-700/20 text-amber-600 border-amber-700/30',
       sprinkler: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
       investment: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+      miscellaneous: 'bg-gray-500/20 text-gray-400 border-gray-500/30'
     }
     return colors[type] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'
   }
