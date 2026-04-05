@@ -84,7 +84,14 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
 
   const validateDate = (dateString: string): boolean => {
     if (!dateString) return false
-    const date = new Date(dateString)
+    let date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      const parts = dateString.split('-')
+      if (parts.length === 3) {
+      // Try DD-MM-YYYY
+        date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`)
+      }
+    }
     if (isNaN(date.getTime())) return false
     const year = date.getFullYear()
     const currentYear = new Date().getFullYear()
