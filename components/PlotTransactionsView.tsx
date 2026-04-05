@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plot } from '@/types/plot'
 import {
   X, Plus, Edit2, Trash2, ChevronDown, ChevronUp,
   TrendingUp, TrendingDown, Wallet, Users, Truck, Coffee,
-  Tractor, Droplets, Sprout, FileText
+  Tractor, Droplets, Sprout, FileText, Calendar
 } from 'lucide-react'
 import {
   createPlotTransaction,
@@ -50,6 +50,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
   const [expandedMobileRow, setExpandedMobileRow] = useState<string | null>(null)
   const [animateIn, setAnimateIn] = useState(false)
   const [dateError, setDateError] = useState<string | null>(null)
+  const dateInputRef = useRef<HTMLInputElement>(null)
 
   const [newTransaction, setNewTransaction] = useState<Partial<Transaction>>({
     date: new Date().toISOString().split('T')[0],
@@ -80,21 +81,13 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
     }
   }
 
-  // ✅ CHANGE 1: Updated validateDate function (lines 71-81 replaced)
   const validateDate = (dateString: string): boolean => {
-    // If empty, invalid
     if (!dateString) return false
-    
-    // Try to create a date object
     const date = new Date(dateString)
     if (isNaN(date.getTime())) return false
-    
     const year = date.getFullYear()
     const currentYear = new Date().getFullYear()
-    
-    // Check year range
     if (year < 1900 || year > currentYear + 10) return false
-    
     return true
   }
 
@@ -108,6 +101,12 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       setEditingTransaction({ ...editingTransaction, date })
     } else {
       setNewTransaction({ ...newTransaction, date })
+    }
+  }
+
+  const openDatePicker = () => {
+    if (dateInputRef.current) {
+      dateInputRef.current.showPicker()
     }
   }
 
@@ -135,7 +134,6 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       
       await loadTransactions()
       
-      // KEEP FORM OPEN - just clear the fields for next entry
       setNewTransaction({
         date: new Date().toISOString().split('T')[0],
         type: 'labour',
@@ -145,7 +143,6 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       })
       setDateError(null)
       
-      // REMOVED: onTransactionUpdate?.() - this was causing modal to close
     } catch (error) {
       console.error('Error adding transaction:', error)
     } finally {
@@ -174,7 +171,6 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       if (result.error) throw new Error(result.error)
       await loadTransactions()
       setEditingTransaction(null)
-      // REMOVED: onTransactionUpdate?.() - this was causing modal to close
     } catch (error) {
       console.error('Error updating transaction:', error)
     } finally {
@@ -189,7 +185,6 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
       const result = await deletePlotTransaction(id)
       if (result.error) throw new Error(result.error)
       await loadTransactions()
-      // REMOVED: onTransactionUpdate?.() - this was causing modal to close
     } catch (error) {
       console.error('Error deleting transaction:', error)
     } finally {
@@ -301,17 +296,26 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-400">Date</label>
-                  {/* ✅ CHANGE 2: Added pattern and placeholder to date input (around line 149) */}
-                  <input
-                    type="date"
-                    value={editingTransaction?.date || newTransaction.date}
-                    onChange={(e) => handleDateChange(e.target.value, !!editingTransaction)}
-                    pattern="\d{4}-\d{2}-\d{2}"
-                    placeholder="YYYY-MM-DD"
-                    className={`w-full bg-black/50 border rounded-lg px-3 py-2 text-white text-sm ${
-                      dateError ? 'border-red-500/50 focus:border-red-500' : 'border-[#D4AF37]/30 focus:border-[#D4AF37]'
-                    }`}
-                  />
+                  <div className="relative">
+                    <input
+                      ref={dateInputRef}
+                      type="date"
+                      value={editingTransaction?.date || newTransaction.date}
+                      onChange={(e) => handleDateChange(e.target.value, !!editingTransaction)}
+                      pattern="\d{4}-\d{2}-\d{2}"
+                      placeholder="YYYY-MM-DD"
+                      className={`w-full bg-black/50 border rounded-lg px-3 py-2 text-white text-sm pr-10 ${
+                        dateError ? 'border-red-500/50 focus:border-red-500' : 'border-[#D4AF37]/30 focus:border-[#D4AF37]'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={openDatePicker}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-[#D4AF37]/20 rounded-lg transition-colors"
+                    >
+                      <Calendar className="w-4 h-4 text-[#D4AF37]" />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-gray-400">Type</label>
