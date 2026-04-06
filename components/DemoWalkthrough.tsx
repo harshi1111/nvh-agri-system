@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 export default function DemoWalkthrough() {
-  const [step, setStep] useState(0);
+  const [step, setStep] = useState(0);
   const [showTour, setShowTour] = useState(false);
 
   useEffect(() => {
