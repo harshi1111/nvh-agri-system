@@ -275,6 +275,15 @@ export default function LoginPage() {
       {/* Card with Subtle Paper Texture */}
       <div className="relative w-full max-w-sm z-10 group/card">
         
+        {/* Demo Mode Indicator */}
+        {process.env.NEXT_PUBLIC_IS_DEMO === 'true' && (
+          <div className="mb-3 text-center">
+            <span className="inline-block text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-3 py-1 rounded-full">
+              🔐 Demo Mode | demo@example.com / demo123
+            </span>
+          </div>
+        )}
+        
         {/* Subtle glow */}
         <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D4AF37]/20 to-transparent rounded-2xl blur opacity-0 group-hover/card:opacity-100 transition-opacity duration-700"></div>
         
