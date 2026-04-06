@@ -9,7 +9,7 @@
   
   <br />
   
-  [![Live Site](https://img.shields.io/badge/live%20site-nvhagrigreen.qzz.io-%23D4AF37?style=for-the-badge&logo=vercel&logoColor=white&labelColor=%230A120A)](https://nvhagrigreen.qzz.io)
+  [![Live Site](https://img.shields.io/badge/live%20site-nvhagrigreen.qzz.io-%23D4AF37?style=for-the-badge&logo=vercel&logoColor=white&labelColor=%230A120A)](nvh-agri-system-demo.vercel.app)
   [![GitHub Repo](https://img.shields.io/badge/github-source%20code-%23D4AF37?style=for-the-badge&logo=github&logoColor=white&labelColor=%230A120A)](https://github.com/harshi1111/nvh-agri-system)
   
   <br />
