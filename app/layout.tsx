@@ -21,7 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        
+        {/* Small floating demo badge - only on demo site */}
+        {process.env.NEXT_PUBLIC_IS_DEMO === 'true' && (
+          <div className="fixed bottom-4 right-4 z-50 bg-[#D4AF37]/10 backdrop-blur-sm border border-[#D4AF37]/30 rounded-full px-3 py-1.5 text-[10px] text-[#D4AF37] shadow-lg">
+            🧪 Demo Mode
+          </div>
+        )}
         
         <SidebarProvider>
           <SimpleCursor />
