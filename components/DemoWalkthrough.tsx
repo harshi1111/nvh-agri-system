@@ -9,30 +9,26 @@ export default function DemoWalkthrough() {
   const pathname = usePathname();
   const isLoginPage = pathname === '/login';
 
-  // Reset and start tour when page changes
   useEffect(() => {
     const hasSeenTour = localStorage.getItem('demo_tour_completed');
-    
     if (process.env.NEXT_PUBLIC_IS_DEMO === 'true' && !hasSeenTour) {
       setShowTour(true);
       setStep(0);
-    } else {
-      setShowTour(false);
     }
-  }, [pathname]); // ← This runs when page changes (login → dashboard)
+  }, [pathname]);
 
-  // Login page steps (only 1 step)
+  // Login steps
   const loginSteps = [
-    { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login and explore the farm management system' },
+    { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login' },
   ];
 
-  // Dashboard steps
+  // Dashboard steps - using simple selectors that exist in your code
   const dashboardSteps = [
-    { selector: '.dashboard-cards', title: '💰 Financial Overview', text: 'See total debit, credit, and available cash at a glance' },
-    { selector: '.recent-activity', title: '📋 Recent Transactions', text: 'Your latest transactions - newest at the top' },
-    { selector: '.add-transaction-btn', title: '➕ Add Transaction', text: 'Record labour, fertilizer, tractor, or crop sales' },
-    { selector: '.customers-list', title: '👨‍🌾 Manage Farmers', text: 'View all farmers and their projects' },
-    { selector: '.sidebar', title: '🧭 Navigation', text: 'Switch between Dashboard, Accounting, Customers, and Reports' },
+    { selector: '.grid.grid-cols-2', title: '💰 Financial Cards', text: 'See debit, credit, and cash' },
+    { selector: '.lg\\:col-span-4', title: '📋 Recent Activity', text: 'Your latest transactions' },
+    { selector: '.bg-\\[\\#D4AF37\\]', title: '➕ Add Transaction', text: 'Record expenses or income' },
+    { selector: '.cursor-pointer.group', title: '👨‍🌾 Manage Farmers', text: 'View all farmers' },
+    { selector: '.sidebar', title: '🧭 Navigation', text: 'Switch between pages' },
   ];
 
   const steps = isLoginPage ? loginSteps : dashboardSteps;
