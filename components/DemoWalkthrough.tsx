@@ -5,28 +5,34 @@ import { useEffect, useState } from 'react';
 export default function DemoWalkthrough() {
   const [step, setStep] = useState(0);
   const [showTour, setShowTour] = useState(false);
+  const [isLoginPage, setIsLoginPage] = useState(false);
 
   useEffect(() => {
-    // Only show on demo site, only once
-    const hasSeen = localStorage.getItem('demo_tour_completed');
-    if (process.env.NEXT_PUBLIC_IS_DEMO === 'true' && !hasSeen) {
+    const isLogin = window.location.pathname === '/login';
+    setIsLoginPage(isLogin);
+    
+    const hasSeenTour = localStorage.getItem('demo_tour_completed');
+    if (process.env.NEXT_PUBLIC_IS_DEMO === 'true' && !hasSeenTour) {
       setShowTour(true);
     }
   }, []);
 
-  // Steps
-  const steps = [
+  const loginSteps = [
     { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login and explore the farm management system' },
+  ];
+
+  const dashboardSteps = [
     { selector: '.dashboard-cards', title: '💰 Financial Overview', text: 'See total debit, credit, and available cash' },
     { selector: '.recent-activity', title: '📋 Recent Transactions', text: 'Your latest transactions - newest at the top' },
     { selector: '.add-transaction-btn', title: '➕ Add Transaction', text: 'Record labour, fertilizer, tractor, or crop sales' },
     { selector: '.customers-list', title: '👨‍🌾 Manage Farmers', text: 'View and manage all farmers' },
+    { selector: '.sidebar', title: '🧭 Navigation', text: 'Switch between Dashboard, Accounting, Customers, and Reports' },
   ];
 
+  const steps = isLoginPage ? loginSteps : dashboardSteps;
   const currentStep = steps[step];
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
 
-  // Find element position
   useEffect(() => {
     if (showTour && currentStep) {
       const findElement = () => {
@@ -40,8 +46,7 @@ export default function DemoWalkthrough() {
             height: rect.height + 20,
           });
         } else {
-          // Try again if element not found
-          setTimeout(findElement, 500);
+          setTimeout(findElement, 300);
         }
       };
       setTimeout(findElement, 500);
@@ -66,12 +71,9 @@ export default function DemoWalkthrough() {
 
   return (
     <>
-      {/* Dark overlay */}
       <div className="fixed inset-0 bg-black/60 z-[200]" onClick={skipTour} />
-      
-      {/* Highlight box */}
       <div
-        className="fixed z-[201] border-4 border-[#D4AF37] rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] transition-all duration-300 pointer-events-none"
+        className="fixed z-[201] border-4 border-[#D4AF37] rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] pointer-events-none"
         style={{
           top: position.top,
           left: position.left,
@@ -79,8 +81,6 @@ export default function DemoWalkthrough() {
           height: position.height,
         }}
       />
-      
-      {/* Tooltip */}
       <div
         className="fixed z-[202] bg-[#1A241A] border border-[#D4AF37] rounded-xl p-4 w-80 shadow-2xl"
         style={{
