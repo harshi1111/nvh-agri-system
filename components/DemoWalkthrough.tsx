@@ -17,18 +17,18 @@ export default function DemoWalkthrough() {
     }
   }, [pathname]);
 
-  // Login steps
+  // Login steps - highlights the login button
   const loginSteps = [
-    { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login' },
+    { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login and explore the farm management system' },
   ];
 
-  // Dashboard steps - using simple selectors that exist in your code
+  // Dashboard steps - using selectors that EXIST in your HTML
   const dashboardSteps = [
-    { selector: '.grid.grid-cols-2', title: '💰 Financial Cards', text: 'See debit, credit, and cash' },
-    { selector: '.lg\\:col-span-4', title: '📋 Recent Activity', text: 'Your latest transactions' },
-    { selector: '.bg-\\[\\#D4AF37\\]', title: '➕ Add Transaction', text: 'Record expenses or income' },
-    { selector: '.cursor-pointer.group', title: '👨‍🌾 Manage Farmers', text: 'View all farmers' },
-    { selector: '.sidebar', title: '🧭 Navigation', text: 'Switch between pages' },
+    { selector: '.grid-cols-2.lg\\:grid-cols-4', title: '💰 Financial Overview', text: 'See total debit, credit, and available cash at a glance' },
+    { selector: '.lg\\:col-span-4', title: '📋 Recent Transactions', text: 'Your latest transactions - newest at the top' },
+    { selector: '.bg-\\[\\#D4AF37\\].text-\\[\\#0A100A\\]', title: '➕ Add Transaction', text: 'Click to record labour, fertilizer, tractor, or crop sales' },
+    { selector: '.border-2.border-\\[\\#7AA65A\\]/40', title: '👨‍🌾 Manage Farmers', text: 'View all farmers and their projects' },
+    { selector: '.sidebar', title: '🧭 Navigation', text: 'Switch between Dashboard, Accounting, Customers, and Reports' },
   ];
 
   const steps = isLoginPage ? loginSteps : dashboardSteps;
@@ -73,7 +73,10 @@ export default function DemoWalkthrough() {
 
   return (
     <>
+      {/* Dark overlay */}
       <div className="fixed inset-0 bg-black/60 z-[200]" onClick={skipTour} />
+      
+      {/* Highlight box */}
       <div
         className="fixed z-[201] border-4 border-[#D4AF37] rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] pointer-events-none transition-all duration-300"
         style={{
@@ -83,6 +86,8 @@ export default function DemoWalkthrough() {
           height: position.height,
         }}
       />
+      
+      {/* Tooltip */}
       <div
         className="fixed z-[202] bg-[#1A241A] border border-[#D4AF37] rounded-xl p-4 w-80 shadow-2xl"
         style={{
