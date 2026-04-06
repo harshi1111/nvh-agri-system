@@ -283,7 +283,7 @@ export default function PlotTransactionsView({ isOpen, onClose, plot, onTransact
           <div className="flex justify-between items-center">
             <h3 className="text-white font-semibold">Transaction Ledger</h3>
             {!showAddForm && !editingTransaction && (
-              <button onClick={() => setShowAddForm(true)} className="px-3 py-1.5 bg-[#D4AF37] text-[#0A100A] rounded-lg text-sm flex items-center gap-1">
+              <button id="add-transaction-btn" onClick={() => setShowAddForm(true)} className="px-3 py-1.5 bg-[#D4AF37] text-[#0A100A] rounded-lg text-sm flex items-center gap-1">
                 <Plus className="w-4 h-4" /> Add Entry
               </button>
             )}
