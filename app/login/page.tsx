@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Lock, Wheat } from 'lucide-react'
-
+import DemoWalkthrough from '@/components/DemoWalkthrough';
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
