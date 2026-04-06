@@ -6,7 +6,7 @@ interface Step {
   target: string;
   title: string;
   content: string;
-  action?: () => void;  // ← Added optional action property
+  action?: () => void;
 }
 
 export default function DemoWalkthrough() {
@@ -46,7 +46,7 @@ export default function DemoWalkthrough() {
       }
     },
     { 
-      target: '#enter-field-button, button[type="submit"]', 
+      target: '#enter-field-button',
       title: '🚀 Enter the Demo', 
       content: 'Click here to login and explore the farm management system',
     },
@@ -72,7 +72,7 @@ export default function DemoWalkthrough() {
         currentStep.action();
       }
       
-      // Wait a moment for DOM to update, then find element
+      // Wait for DOM to update, then find element
       setTimeout(() => {
         const element = document.querySelector(currentStep.target);
         if (element) {
@@ -84,7 +84,7 @@ export default function DemoWalkthrough() {
             height: rect.height,
           });
         }
-      }, 100);
+      }, 300);
     }
   }, [step, showTour, currentStep, isLoginPage]);
 
