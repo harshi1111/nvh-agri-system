@@ -5,16 +5,48 @@ import { useEffect, useState } from 'react';
 export default function DemoWalkthrough() {
   const [step, setStep] = useState(0);
   const [showTour, setShowTour] = useState(false);
+  const [isLoginPage, setIsLoginPage] = useState(false);
 
   useEffect(() => {
-    // Only show on demo site and only once
+    // Check if we're on login page or dashboard
+    const isLogin = window.location.pathname === '/login';
+    setIsLoginPage(isLogin);
+    
     const hasSeenTour = localStorage.getItem('demo_tour_completed');
     if (process.env.NEXT_PUBLIC_IS_DEMO === 'true' && !hasSeenTour) {
       setShowTour(true);
     }
   }, []);
 
-  const steps = [
+  // Steps for Login Page
+  const loginSteps = [
+    { 
+      target: 'input[type="email"]', 
+      title: '📧 Email Pre-filled', 
+      content: 'Demo email is already filled for you: demo@example.com',
+      action: () => {
+        const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+        if (emailInput) emailInput.value = 'demo@example.com';
+      }
+    },
+    { 
+      target: 'input[type="password"]', 
+      title: '🔒 Password Pre-filled', 
+      content: 'Password is already filled: demo123',
+      action: () => {
+        const passwordInput = document.querySelector('input[type="password"]') as HTMLInputElement;
+        if (passwordInput) passwordInput.value = 'demo123';
+      }
+    },
+    { 
+      target: '#enter-field-button, button[type="submit"]', 
+      title: '🚀 Enter the Demo', 
+      content: 'Click here to login and explore the farm management system',
+    },
+  ];
+
+  // Steps for Dashboard
+  const dashboardSteps = [
     { target: '.dashboard-cards', title: '💰 Financial Overview', content: 'See total debit, credit, and available cash at a glance' },
     { target: '.recent-activity', title: '📋 Recent Transactions', content: 'Latest 10 transactions - newest at the top' },
     { target: '.add-transaction-btn', title: '➕ Add Transaction', content: 'Record labour, fertilizer, tractor, or crop sales' },
@@ -22,23 +54,32 @@ export default function DemoWalkthrough() {
     { target: '.sidebar', title: '🧭 Navigation', content: 'Switch between Dashboard, Accounting, Customers, and Reports' },
   ];
 
+  const steps = isLoginPage ? loginSteps : dashboardSteps;
   const currentStep = steps[step];
   const [targetRect, setTargetRect] = useState({ top: 0, left: 0, width: 0, height: 0 });
 
   useEffect(() => {
     if (showTour && currentStep) {
-      const element = document.querySelector(currentStep.target);
-      if (element) {
-        const rect = element.getBoundingClientRect();
-        setTargetRect({
-          top: rect.top + window.scrollY,
-          left: rect.left + window.scrollX,
-          width: rect.width,
-          height: rect.height,
-        });
+      // Run action if exists (for pre-filling credentials)
+      if (currentStep.action) {
+        currentStep.action();
       }
+      
+      // Wait a moment for DOM to update, then find element
+      setTimeout(() => {
+        const element = document.querySelector(currentStep.target);
+        if (element) {
+          const rect = element.getBoundingClientRect();
+          setTargetRect({
+            top: rect.top + window.scrollY,
+            left: rect.left + window.scrollX,
+            width: rect.width,
+            height: rect.height,
+          });
+        }
+      }, 100);
     }
-  }, [step, showTour, currentStep]);
+  }, [step, showTour, currentStep, isLoginPage]);
 
   const handleNext = () => {
     if (step + 1 < steps.length) {
@@ -46,6 +87,7 @@ export default function DemoWalkthrough() {
     } else {
       setShowTour(false);
       localStorage.setItem('demo_tour_completed', 'true');
+      // If on login page, trigger login? No - let user click manually
     }
   };
 
@@ -87,7 +129,7 @@ export default function DemoWalkthrough() {
             Skip tour
           </button>
           <button onClick={handleNext} className="bg-[#D4AF37] text-[#0A120A] px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-[#C6A032]">
-            {step + 1 === steps.length ? 'Finish' : 'Next →'}
+            {step + 1 === steps.length ? (isLoginPage ? 'Login →' : 'Finish') : 'Next →'}
           </button>
         </div>
         <div className="mt-2 text-center">
