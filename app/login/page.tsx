@@ -125,6 +125,14 @@ export default function LoginPage() {
     setLoading(false)
   }
 
+  // Auto-fill demo credentials on demo site
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_IS_DEMO === 'true') {
+      setEmail('demo@example.com');
+      setPassword('demo123');
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#0A120A] relative overflow-hidden flex items-center justify-center p-4">
       
@@ -266,14 +274,6 @@ export default function LoginPage() {
 
       {/* Card with Subtle Paper Texture */}
       <div className="relative w-full max-w-sm z-10 group/card">
-        {/* Demo Banner - Only on Demo Site */}
-        {process.env.NEXT_PUBLIC_IS_DEMO === 'true' && (
-        <div className="mb-4 bg-gradient-to-r from-[#D4AF37]/20 to-[#7AA65A]/20 border border-[#D4AF37]/50 rounded-xl p-3 text-center">
-          <p className="text-[#D4AF37] text-xs font-medium">🔐 DEMO MODE</p>
-          <p className="text-gray-400 text-[10px] mt-1">Email: demo@example.com | Password: demo123</p>
-          <p className="text-gray-500 text-[9px] mt-1">Data resets daily • Try everything!</p>
-        </div>
-        )}
         
         {/* Subtle glow */}
         <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D4AF37]/20 to-transparent rounded-2xl blur opacity-0 group-hover/card:opacity-100 transition-opacity duration-700"></div>
