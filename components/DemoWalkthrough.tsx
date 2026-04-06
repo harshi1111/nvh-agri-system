@@ -11,7 +11,7 @@ export default function DemoWalkthrough() {
   // Check if we're on login page OR customers page OR dashboard
   const isLoginPage = pathname === '/login';
   const isCustomersPage = pathname === '/customers';
-  const isDashboardPage = pathname === '/dashboard';
+  const isDashboardPage = pathname === '/customers' || pathname === '/dashboard';
 
   useEffect(() => {
     const hasSeenTour = localStorage.getItem('demo_tour_completed');
