@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
+interface Step {
+  target: string;
+  title: string;
+  content: string;
+  action?: () => void;  // ← Added optional action property
+}
+
 export default function DemoWalkthrough() {
   const [step, setStep] = useState(0);
   const [showTour, setShowTour] = useState(false);
@@ -19,7 +26,7 @@ export default function DemoWalkthrough() {
   }, []);
 
   // Steps for Login Page
-  const loginSteps = [
+  const loginSteps: Step[] = [
     { 
       target: 'input[type="email"]', 
       title: '📧 Email Pre-filled', 
@@ -46,7 +53,7 @@ export default function DemoWalkthrough() {
   ];
 
   // Steps for Dashboard
-  const dashboardSteps = [
+  const dashboardSteps: Step[] = [
     { target: '.dashboard-cards', title: '💰 Financial Overview', content: 'See total debit, credit, and available cash at a glance' },
     { target: '.recent-activity', title: '📋 Recent Transactions', content: 'Latest 10 transactions - newest at the top' },
     { target: '.add-transaction-btn', title: '➕ Add Transaction', content: 'Record labour, fertilizer, tractor, or crop sales' },
@@ -87,7 +94,6 @@ export default function DemoWalkthrough() {
     } else {
       setShowTour(false);
       localStorage.setItem('demo_tour_completed', 'true');
-      // If on login page, trigger login? No - let user click manually
     }
   };
 
