@@ -9,21 +9,24 @@ export default function DemoWalkthrough() {
   const pathname = usePathname();
   const isLoginPage = pathname === '/login';
 
-  // Reset tour when page changes and start appropriate steps
+  // Reset and start tour when page changes
   useEffect(() => {
     const hasSeenTour = localStorage.getItem('demo_tour_completed');
+    
     if (process.env.NEXT_PUBLIC_IS_DEMO === 'true' && !hasSeenTour) {
       setShowTour(true);
       setStep(0);
+    } else {
+      setShowTour(false);
     }
-  }, [pathname]); // Re-run when page changes
+  }, [pathname]); // ← This runs when page changes (login → dashboard)
 
   // Login page steps (only 1 step)
   const loginSteps = [
     { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login and explore the farm management system' },
   ];
 
-  // Dashboard steps (only shown AFTER login)
+  // Dashboard steps
   const dashboardSteps = [
     { selector: '.dashboard-cards', title: '💰 Financial Overview', text: 'See total debit, credit, and available cash at a glance' },
     { selector: '.recent-activity', title: '📋 Recent Transactions', text: 'Your latest transactions - newest at the top' },
