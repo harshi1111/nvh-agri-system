@@ -179,7 +179,27 @@ Authentication: Supabase Auth (JWT based)
 
 ---
 ## 📸 Screenshots
-<div align="center"> <table> <tr> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-dashboard.png" width="100%" /></td> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-customers.png" width="100%" /></td> </tr> <tr> <td align="center"><i>Dashboard — at a glance</i></td> <td align="center"><i>Customers — all your farmers</i></td> </tr> <tr> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-accounting.png" width="100%" /></td> <td><img src="https://raw.githubusercontent.com/harshi1111/nvh-agri-system/main/public/images/screenshot-project.png" width="100%" /></td> </tr> <tr> <td align="center"><i>Accounting — money matters</i></td> <td align="center"><i>Project View — field details</i></td> </tr> </table> </div>
+
+<div align="center">
+  <table>
+    <tr>
+      <td><img src="https://github.com/user-attachments/assets/e485dd49-abbc-47c8-8d24-9d78de5d440a" width="100%" alt="Dashboard" /></td>
+      <td><img src="https://github.com/user-attachments/assets/e6491ad8-26d8-4a6b-9db3-ffbea128c4d7" width="100%" alt="Customers" /></td>
+    </tr>
+    <tr>
+      <td align="center"><i>Dashboard — at a glance</i></td>
+      <td align="center"><i>Customers — all your farmers</i></td>
+    </tr>
+    <tr>
+      <td><img src="https://github.com/user-attachments/assets/31eb537c-10de-4fec-80e8-13755b481dcd" width="100%" alt="Transactions" /></td>
+      <td><img src="https://github.com/user-attachments/assets/968745de-168c-4a3f-9d9f-2fbb58be293d" width="100%" alt="Reports" /></td>
+    </tr>
+    <tr>
+      <td align="center"><i>Transactions — add/edit entries</i></td>
+      <td align="center"><i>Reports — Excel export</i></td>
+    </tr>
+  </table>
+</div>
 
 ## 🔒 **Security**
 
