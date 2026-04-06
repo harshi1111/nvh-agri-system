@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import RevenueExpenseModal from '@/components/RevenueExpenseModal'
+import DemoWalkthrough from '@/components/DemoWalkthrough';
 import FarmTasksModal from '@/components/FarmTasksModal'
 import { 
   Users, 
@@ -693,6 +694,7 @@ export default function DashboardClient({ customers, recentTransactions, dashboa
 
   return (
     <div className="min-h-screen bg-[#0A120A] relative overflow-hidden">
+      {process.env.NEXT_PUBLIC_IS_DEMO === 'true' && <DemoWalkthrough />}
       <div className="absolute inset-0">
         <div className="absolute bottom-1/3 left-0 right-0 h-32 bg-gradient-to-t from-[#1A2A1A]/40 to-transparent"></div>
         <div className="absolute bottom-1/3 left-0 right-0">{[...Array(8)].map((_, i) => (<div key={i} className="absolute bottom-0 w-full h-12" style={{ left: `${i * 12.5}%`, transform: `translateY(${Math.sin(i) * 3}px)` }}><div className="relative">{[...Array(4)].map((_, j) => (<div key={j} className="absolute w-0.5 bg-[#D4AF37]/20" style={{ left: `${j * 10}px`, height: '14px', bottom: '0', transform: `rotate(${Math.sin(j + i) * 8}deg)` }}></div>))}</div></div>))}</div>
