@@ -7,7 +7,11 @@ export default function DemoWalkthrough() {
   const [step, setStep] = useState(0);
   const [showTour, setShowTour] = useState(false);
   const pathname = usePathname();
+  
+  // Check if we're on login page OR customers page OR dashboard
   const isLoginPage = pathname === '/login';
+  const isCustomersPage = pathname === '/customers';
+  const isDashboardPage = pathname === '/dashboard';
 
   useEffect(() => {
     const hasSeenTour = localStorage.getItem('demo_tour_completed');
@@ -17,21 +21,28 @@ export default function DemoWalkthrough() {
     }
   }, [pathname]);
 
-  // Login steps - highlights the login button
+  // Login steps
   const loginSteps = [
-    { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login and explore the farm management system' },
+    { selector: '#enter-field-button', title: '🚀 Enter the Demo', text: 'Click this button to login' },
   ];
 
-  // Dashboard steps - using selectors that EXIST in your HTML
+  // Dashboard steps
   const dashboardSteps = [
-    { selector: '.grid-cols-2.lg\\:grid-cols-4', title: '💰 Financial Overview', text: 'See total debit, credit, and available cash at a glance' },
-    { selector: '.lg\\:col-span-4', title: '📋 Recent Transactions', text: 'Your latest transactions - newest at the top' },
-    { selector: '.bg-\\[\\#D4AF37\\].text-\\[\\#0A100A\\]', title: '➕ Add Transaction', text: 'Click to record labour, fertilizer, tractor, or crop sales' },
-    { selector: '.border-2.border-\\[\\#7AA65A\\]/40', title: '👨‍🌾 Manage Farmers', text: 'View all farmers and their projects' },
-    { selector: '.sidebar', title: '🧭 Navigation', text: 'Switch between Dashboard, Accounting, Customers, and Reports' },
+    { selector: '.grid-cols-2.lg\\:grid-cols-4', title: '💰 Financial Overview', text: 'See total debit, credit, and available cash' },
+    { selector: '.lg\\:col-span-4', title: '📋 Recent Transactions', text: 'Your latest transactions' },
+    { selector: '.bg-\\[\\#D4AF37\\]', title: '➕ Add Transaction', text: 'Record expenses or income' },
   ];
 
-  const steps = isLoginPage ? loginSteps : dashboardSteps;
+  // Customers page steps
+  const customersSteps = [
+    { selector: '.border-2.border-\\[\\#7AA65A\\]/40', title: '👨‍🌾 Manage Farmers', text: 'View all farmers and their projects' },
+    { selector: '.sidebar', title: '🧭 Navigation', text: 'Go back to Dashboard or Accounting' },
+  ];
+
+  let steps = loginSteps;
+  if (isDashboardPage) steps = dashboardSteps;
+  if (isCustomersPage) steps = customersSteps;
+
   const currentStep = steps[step];
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0, height: 0 });
 
@@ -73,10 +84,7 @@ export default function DemoWalkthrough() {
 
   return (
     <>
-      {/* Dark overlay */}
       <div className="fixed inset-0 bg-black/60 z-[200]" onClick={skipTour} />
-      
-      {/* Highlight box */}
       <div
         className="fixed z-[201] border-4 border-[#D4AF37] rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] pointer-events-none transition-all duration-300"
         style={{
@@ -86,8 +94,6 @@ export default function DemoWalkthrough() {
           height: position.height,
         }}
       />
-      
-      {/* Tooltip */}
       <div
         className="fixed z-[202] bg-[#1A241A] border border-[#D4AF37] rounded-xl p-4 w-80 shadow-2xl"
         style={{
@@ -98,8 +104,8 @@ export default function DemoWalkthrough() {
         <h3 className="text-[#D4AF37] font-bold text-sm mb-1">{currentStep.title}</h3>
         <p className="text-gray-300 text-xs mb-3">{currentStep.text}</p>
         <div className="flex justify-between">
-          <button onClick={skipTour} className="text-gray-500 text-xs hover:text-gray-300">Skip</button>
-          <button onClick={nextStep} className="bg-[#D4AF37] text-black px-4 py-1 rounded text-xs font-medium hover:bg-[#C6A032]">
+          <button onClick={skipTour} className="text-gray-500 text-xs">Skip</button>
+          <button onClick={nextStep} className="bg-[#D4AF37] text-black px-4 py-1 rounded text-xs font-medium">
             {step + 1 === steps.length ? 'Finish' : 'Next →'}
           </button>
         </div>
