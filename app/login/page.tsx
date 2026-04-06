@@ -135,7 +135,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#0A120A] relative overflow-hidden flex items-center justify-center p-4">
-      
+      {process.env.NEXT_PUBLIC_IS_DEMO === 'true' && <DemoWalkthrough />}
       {/* Enhanced Background - Dawn Field with Depth */}
       <div className="absolute inset-0">
         {/* Far distance - faint birds already in the sky */}
